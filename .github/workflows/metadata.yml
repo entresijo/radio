@@ -21,31 +21,22 @@ jobs:
 
       - name: Parse metadata
         run: |
-          python3 <<EOF
+          python3 -c "
 import re
-
-html = open("raw.html").read()
-
+html = open('raw.html').read()
 song_match = re.search(r'Current Song:</td>\s*<td[^>]*>(.*?)</td>', html, re.I)
 listeners_match = re.search(r'Current Listeners:</td>\s*<td[^>]*>(\d+)', html, re.I)
-
-song = song_match.group(1).strip() if song_match else ""
+song = song_match.group(1).strip() if song_match else ''
 listeners = int(listeners_match.group(1)) if listeners_match else 0
-
-print("SONG:", song)
-print("LISTENERS:", listeners)
-
-with open("metadata.json", "w") as f:
-    f.write(f'{{ "song": "{song}", "listeners": {listeners} }}')
-EOF
+print('SONG:', song)
+print('LISTENERS:', listeners)
+open('metadata.json','w').write(f'{\"song\":\"{song}\",\"listeners\":{listeners}}')
+"
 
       - name: Commit & Push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-
           git add metadata.json
-
-          git commit -m "update metadata" || echo "Sin cambios para commitear"
-
+          git commit -m "update metadata" || echo "Sin cambios"
           git push
