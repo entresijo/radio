@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Radio</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #000;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.container {
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+}
+
+/* ON AIR */
+.onair {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  margin-bottom: 20px;
+}
+
+.onair.on {
+  background: red;
+  animation: blink 1.5s infinite;
+}
+
+.onair.off {
+  background: #00c853;
+  color: #000;
+}
+
+@keyframes blink {
+  0%,100% { opacity:1; }
+  50% { opacity:0.4; }
+}
+
+/* BOTÓN */
+.play-btn {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: red;
+  border: none;
+  color: white;
+  font-size: 40px;
+  cursor: pointer;
+  margin: 20px auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-btn:active {
+  transform: scale(0.95);
+}
+
+/* TEXTO */
+.status {
+  margin-top: 10px;
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.track {
+  margin-top: 20px;
+  font-weight: bold;
+}
+
+.listeners {
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+/* AUDIO */
+audio {
+  width: 100%;
+  margin-top: 20px;
+  filter: invert(1);
+}
+</style>
+
+</head>
+<body>
+
+<div class="container">
+
+  <h1>🎵 Mi Radio</h1>
+
+  <div id="onair" class="onair off">● FUERA DEL AIRE</div>
+
+  <button id="btn" class="play-btn">▶</button>
+
+  <div id="status" class="status">listo</div>
+
+  <div id="track" class="track">—</div>
+  <div id="listeners" class="listeners"></div>
+
+  <audio id="player" controls></audio>
+
+</div>
+
+<script>
+/* ========= CONFIG ========= */
+const STREAM = "https://uk15freenew.listen2myradio.com/live.mp3?typeportmount=ice_4243_stream_737103432"
+
+/* ========= ELEMENTOS ========= */
+const player = document.getElementById("player")
+const btn = document.getElementById("btn")
+const status = document.getElementById("status")
+const onair = document.getElementById("onair")
+const track = document.getElementById("track")
+const listeners = document.getElementById("listeners")
+
+let playing = false
+let META_URL = construirMetaURL(STREAM)
+
+/* ========= CONSTRUIR URL ICECAST ========= */
+function construirMetaURL(stream){
+  const match = stream.match(/https:\/\/([^\/]+)\/.*ice_(\d+)_/)
+  if(match){
+    return "http://" + match[1] + ":" + match[2] + "/"
+  }
+  return null
+}
+
+/* ========= ON AIR ========= */
+function setOnAir(state){
+  if(state === "on"){
+    onair.className = "onair on"
+    onair.innerText = "● EN EL AIRE"
+  } else {
+    onair.className = "onair off"
+    onair.innerText = "● FUERA DEL AIRE"
+  }
+}
+
+/* ========= CHECK STREAM ========= */
+async function checkStream(){
+  if(!META_URL) return
+
+  try{
+    const res = await fetch("https://corsproxy.io/?" + encodeURIComponent(META_URL))
+    const html = await res.text()
+
+    if(html.includes("Icecast Status")){
+      setOnAir("on")
+    } else {
+      setOnAir("off")
+    }
+
+    parseMetadata(html)
+
+  } catch(e){
+    setOnAir("off")
+    track.innerText = "sin datos"
+    listeners.innerText = ""
+  }
+}
+
+/* ========= PARSE HTML ========= */
+function parseMetadata(html){
+
+  const songMatch = html.match(/Current Song:<\/td><td[^>]*>(.*?)<\/td>/i)
+  const listenersMatch = html.match(/Listeners \(current\):<\/td><td[^>]*>(\d+)/i)
+
+  track.innerText = songMatch ? songMatch[1] : "—"
+  listeners.innerText = listenersMatch ? "👥 " + listenersMatch[1] + " oyentes" : ""
+}
+
+/* ========= PLAYER ========= */
+btn.onclick = () => {
+  if(!playing){
+    player.src = STREAM
+    player.play()
+    btn.innerHTML = "⏸"
+    status.innerText = "conectando..."
+    playing = true
+  } else {
+    player.pause()
+    btn.innerHTML = "▶"
+    status.innerText = "pausado"
+    playing = false
+  }
+}
+
+/* ========= EVENTOS AUDIO ========= */
+player.onplaying = () => status.innerText = "reproduciendo"
+player.onwaiting = () => status.innerText = "cargando..."
+player.onerror = () => status.innerText = "error"
+player.onpause = () => {
+  if(!playing) status.innerText = "pausado"
+}
+
+/* ========= LOOP ========= */
+setInterval(checkStream, 15000)
+checkStream()
+
+</script>
+
+</body>
+</html>
