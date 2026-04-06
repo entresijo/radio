@@ -1,0 +1,33 @@
+name: Update Radio Metadata
+
+on:
+  schedule:
+    - cron: "*/2 * * * *"   # cada 2 minutos
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch metadata
+        run: |
+          curl -s http://uk15freenew.listen2myradio.com:4243/ > raw.html
+
+      - name: Parse metadata
+        run: |
+          SONG=$(grep -oP '(?<=Current Song:</td><td class="streamdata">).*?(?=</td>)' raw.html)
+          LISTENERS=$(grep -oP '(?<=Current Listeners:</td><td class="streamdata">)[0-9]+' raw.html)
+
+          echo "{ \"song\": \"${SONG}\", \"listeners\": ${LISTENERS:-0} }" > metadata.json
+
+      - name: Commit changes
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@github.com"
+          git add metadata.json
+          git commit -m "update metadata" || echo "no changes"
+          git push
