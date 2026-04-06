@@ -78,15 +78,9 @@ audio {
 
 /* ========= CONFIG ========= */
 
-// SOLO STREAM
 const STREAM_URL = "https://uk15freenew.listen2myradio.com/live.mp3?typeportmount=ice_4243_stream_737103432"
-
-// SOLO ICECAST (metadata)
 const ICECAST_URL = "http://uk15freenew.listen2myradio.com:4243/"
-
-// PROXY (clave)
 const PROXY = "https://proxy.corsfix.com/?"
-
 
 /* ========= ELEMENTOS ========= */
 
@@ -97,8 +91,19 @@ const onair = document.getElementById("onair")
 const track = document.getElementById("track")
 const listeners = document.getElementById("listeners")
 
-let playing = false
+/* DEBUG EN PANTALLA */
+const debugDiv = document.createElement("div")
+debugDiv.style.fontSize = "11px"
+debugDiv.style.marginTop = "10px"
+debugDiv.style.opacity = "0.6"
+document.querySelector(".container").appendChild(debugDiv)
 
+function debug(msg){
+  console.log(msg)
+  debugDiv.innerText = msg
+}
+
+let playing = false
 
 /* ========= UI ========= */
 
@@ -111,7 +116,6 @@ function setOnAir(state){
     onair.innerText = "● FUERA DEL AIRE"
   }
 }
-
 
 /* ========= PLAYER ========= */
 
@@ -134,31 +138,41 @@ player.onplaying = () => status.innerText = "reproduciendo"
 player.onwaiting = () => status.innerText = "cargando..."
 player.onerror = () => status.innerText = "error"
 
-
 /* ========= FETCH ICECAST ========= */
 
 async function fetchIcecast(){
 
+  debug("Fetching...")
+
   try{
-    const res = await fetch(PROXY + encodeURIComponent(ICECAST_URL))
+    const url = PROXY + encodeURIComponent(ICECAST_URL)
+    debug("URL: " + url)
+
+    const res = await fetch(url)
+
+    debug("Status HTTP: " + res.status)
+
     const html = await res.text()
 
-    // detectar si el server responde
+    debug("HTML recibido: " + html.substring(0, 200))
+
     if(html.includes("Icecast Status")){
       setOnAir("on")
+      debug("Detectado Icecast OK")
     } else {
       setOnAir("off")
+      debug("NO es Icecast")
     }
 
     parseHTML(html)
 
   } catch(e){
+    debug("ERROR FETCH: " + e.message)
     setOnAir("off")
     track.innerText = "sin datos"
     listeners.innerText = ""
   }
 }
-
 
 /* ========= PARSER ========= */
 
@@ -167,10 +181,12 @@ function parseHTML(html){
   const song = html.match(/Current Song:<\/td><td[^>]*>(.*?)<\/td>/i)
   const listen = html.match(/Listeners \(current\):<\/td><td[^>]*>(\d+)/i)
 
+  debug("Song match: " + (song ? song[1] : "null"))
+  debug("Listeners match: " + (listen ? listen[1] : "null"))
+
   track.innerText = song ? song[1] : "—"
   listeners.innerText = listen ? "👥 " + listen[1] + " oyentes" : ""
 }
-
 
 /* ========= LOOP ========= */
 
