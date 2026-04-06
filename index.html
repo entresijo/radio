@@ -145,29 +145,36 @@ async function fetchIcecast(){
   debug("Fetching...")
 
   try{
-    const url = PROXY + encodeURIComponent(ICECAST_URL)
+    const url = PROXY + ICECAST_URL
     debug("URL: " + url)
 
     const res = await fetch(url)
 
     debug("Status HTTP: " + res.status)
 
+    if(!res.ok){
+      throw new Error("HTTP error " + res.status)
+    }
+
     const html = await res.text()
 
-    debug("HTML recibido: " + html.substring(0, 200))
+    if(html.includes("corsfix_error")){
+      debug("❌ Proxy error detectado")
+      throw new Error("Proxy error")
+    }
 
-    if(html.includes("Icecast Status")){
+    debug("HTML OK")
+
+    if(html.includes("Icecast")){
       setOnAir("on")
-      debug("Detectado Icecast OK")
     } else {
       setOnAir("off")
-      debug("NO es Icecast")
     }
 
     parseHTML(html)
 
   } catch(e){
-    debug("ERROR FETCH: " + e.message)
+    debug("ERROR: " + e.message)
     setOnAir("off")
     track.innerText = "sin datos"
     listeners.innerText = ""
