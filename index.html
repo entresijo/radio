@@ -178,16 +178,25 @@ async function fetchIcecast(){
 
 function parseHTML(html){
 
-  const song = html.match(/Current Song:<\/td><td[^>]*>(.*?)<\/td>/i)
-  const listen = html.match(/Listeners \(current\):<\/td><td[^>]*>(\d+)/i)
+  /* ===== CURRENT SONG ===== */
+  const songMatch = html.match(
+    /<td>\s*Current Song:\s*<\/td>\s*<td[^>]*class="streamdata"[^>]*>(.*?)<\/td>/i
+  )
 
-  debug("Song match: " + (song ? song[1] : "null"))
-  debug("Listeners match: " + (listen ? listen[1] : "null"))
+  /* ===== LISTENERS ===== */
+  const listenersMatch = html.match(
+    /<td>\s*Current Listeners:\s*<\/td>\s*<td[^>]*class="streamdata"[^>]*>(\d+)/i
+  )
 
-  track.innerText = song ? song[1] : "—"
-  listeners.innerText = listen ? "👥 " + listen[1] + " oyentes" : ""
+  const song = songMatch ? songMatch[1].trim() : null
+  const listenersCount = listenersMatch ? listenersMatch[1] : null
+
+  debug("✔ Song detectado: " + song)
+  debug("✔ Listeners detectados: " + listenersCount)
+
+  track.innerText = song || "—"
+  listeners.innerText = listenersCount ? "👥 " + listenersCount + " oyentes" : ""
 }
-
 /* ========= LOOP ========= */
 
 setInterval(fetchIcecast, 15000)
