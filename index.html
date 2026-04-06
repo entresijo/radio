@@ -78,9 +78,11 @@ audio {
 
 /* ========= CONFIG ========= */
 
+// STREAM (esto sigue siendo dinámico pero el tuyo actual funciona)
 const STREAM_URL = "https://uk15freenew.listen2myradio.com/live.mp3?typeportmount=ice_4243_stream_737103432"
-const ICECAST_URL = "http://uk15freenew.listen2myradio.com:4243/"
-const PROXY = "https://proxy.corsfix.com/?"
+
+// metadata desde GitHub
+const METADATA_URL = "/radio/metadata.json"
 
 /* ========= ELEMENTOS ========= */
 
@@ -90,18 +92,6 @@ const status = document.getElementById("status")
 const onair = document.getElementById("onair")
 const track = document.getElementById("track")
 const listeners = document.getElementById("listeners")
-
-/* DEBUG EN PANTALLA */
-const debugDiv = document.createElement("div")
-debugDiv.style.fontSize = "11px"
-debugDiv.style.marginTop = "10px"
-debugDiv.style.opacity = "0.6"
-document.querySelector(".container").appendChild(debugDiv)
-
-function debug(msg){
-  console.log(msg)
-  debugDiv.innerText = msg
-}
 
 let playing = false
 
@@ -122,7 +112,9 @@ function setOnAir(state){
 btn.onclick = () => {
   if(!playing){
     player.src = STREAM_URL
-    player.play()
+    player.play().catch(() => {
+      status.innerText = "error al reproducir"
+    })
     btn.innerHTML = "⏸"
     status.innerText = "conectando..."
     playing = true
@@ -136,78 +128,38 @@ btn.onclick = () => {
 
 player.onplaying = () => status.innerText = "reproduciendo"
 player.onwaiting = () => status.innerText = "cargando..."
-player.onerror = () => status.innerText = "error"
+player.onerror = () => status.innerText = "error de stream"
 
-/* ========= FETCH ICECAST ========= */
+/* ========= FETCH METADATA ========= */
 
-async function fetchIcecast(){
-
-  debug("Fetching...")
+async function fetchMetadata(){
 
   try{
-    const url = PROXY + ICECAST_URL
-    debug("URL: " + url)
+    const res = await fetch(METADATA_URL + "?t=" + Date.now())
+    if(!res.ok) throw new Error("no responde")
 
-    const res = await fetch(url)
+    const data = await res.json()
 
-    debug("Status HTTP: " + res.status)
+    // SI hay datos → está al aire
+    setOnAir("on")
 
-    if(!res.ok){
-      throw new Error("HTTP error " + res.status)
-    }
-
-    const html = await res.text()
-
-    if(html.includes("corsfix_error")){
-      debug("❌ Proxy error detectado")
-      throw new Error("Proxy error")
-    }
-
-    debug("HTML OK")
-
-    if(html.includes("Icecast")){
-      setOnAir("on")
-    } else {
-      setOnAir("off")
-    }
-
-    parseHTML(html)
+    track.innerText = data.song || "—"
+    listeners.innerText = data.listeners
+      ? "👥 " + data.listeners + " oyentes"
+      : ""
 
   } catch(e){
-    debug("ERROR: " + e.message)
+    // si falla → fuera del aire
     setOnAir("off")
     track.innerText = "sin datos"
     listeners.innerText = ""
   }
 }
 
-/* ========= PARSER ========= */
-
-function parseHTML(html){
-
-  /* ===== CURRENT SONG ===== */
-  const songMatch = html.match(
-    /<td>\s*Current Song:\s*<\/td>\s*<td[^>]*class="streamdata"[^>]*>(.*?)<\/td>/i
-  )
-
-  /* ===== LISTENERS ===== */
-  const listenersMatch = html.match(
-    /<td>\s*Current Listeners:\s*<\/td>\s*<td[^>]*class="streamdata"[^>]*>(\d+)/i
-  )
-
-  const song = songMatch ? songMatch[1].trim() : null
-  const listenersCount = listenersMatch ? listenersMatch[1] : null
-
-  debug("✔ Song detectado: " + song)
-  debug("✔ Listeners detectados: " + listenersCount)
-
-  track.innerText = song || "—"
-  listeners.innerText = listenersCount ? "👥 " + listenersCount + " oyentes" : ""
-}
 /* ========= LOOP ========= */
 
-setInterval(fetchIcecast, 15000)
-fetchIcecast()
+setInterval(fetchMetadata, 15000)
+fetchMetadata()
 
 </script>
 
