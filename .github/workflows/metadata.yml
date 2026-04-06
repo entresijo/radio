@@ -2,7 +2,7 @@ name: Update Radio Metadata
 
 on:
   schedule:
-    - cron: "*/2 * * * *"   # cada 2 minutos
+    - cron: "*/2 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -13,21 +13,32 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Fetch metadata
+      - name: Fetch HTML
         run: |
           curl -s http://uk15freenew.listen2myradio.com:4243/ > raw.html
+          echo "HTML descargado"
+          head -n 20 raw.html
 
       - name: Parse metadata
         run: |
-          SONG=$(grep -oP '(?<=Current Song:</td><td class="streamdata">).*?(?=</td>)' raw.html)
-          LISTENERS=$(grep -oP '(?<=Current Listeners:</td><td class="streamdata">)[0-9]+' raw.html)
+          SONG=$(grep -oP '(?<=Current Song:</td><td class="streamdata">).*?(?=</td>)' raw.html || true)
+          LISTENERS=$(grep -oP '(?<=Current Listeners:</td><td class="streamdata">)[0-9]+' raw.html || true)
+
+          echo "SONG: $SONG"
+          echo "LISTENERS: $LISTENERS"
 
           echo "{ \"song\": \"${SONG}\", \"listeners\": ${LISTENERS:-0} }" > metadata.json
 
-      - name: Commit changes
+          echo "Archivo generado:"
+          cat metadata.json
+
+      - name: Commit & Push
         run: |
-          git config user.name "bot"
-          git config user.email "bot@github.com"
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
           git add metadata.json
-          git commit -m "update metadata" || echo "no changes"
+
+          git commit -m "update metadata" || echo "Sin cambios para commitear"
+
           git push
