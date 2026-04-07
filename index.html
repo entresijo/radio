@@ -4,234 +4,168 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Entresijo Radio</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-red: #ff3b30;
-            --bg-color: #0a0a0a;
-            --card-bg: #1a1a1a;
-            --text-main: #ffffff;
-            --text-dim: #a0a0a0;
-            --on-air: #00c853;
+            --primary: #ff3b30;
+            --bg: #0d0d0d;
+            --card: #1a1a1a;
+            --text: #ffffff;
+            --text-dim: #888;
         }
 
         body {
-            margin: 0;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
+            margin: 0; background: var(--bg); color: var(--text);
+            font-family: 'Inter', sans-serif; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
         }
 
         .container {
-            text-align: center;
-            width: 90%;
-            max-width: 350px;
-            padding: 30px;
-            background: var(--card-bg);
-            border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            width: 320px; padding: 30px; background: var(--card);
+            border-radius: 32px; text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,0.5);
         }
 
-        h1 {
-            font-size: 1.5rem;
-            margin-bottom: 25px;
-            letter-spacing: -0.5px;
-        }
+        /* Reloj y Fecha */
+        .datetime { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 15px; letter-spacing: 1px; }
 
-        /* Badge de Estado */
-        .status-badge {
-            display: inline-block;
-            padding: 6px 16px;
-            border-radius: 50px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            margin-bottom: 30px;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+        .radio-header h1 { font-size: 1.2rem; margin: 0; }
+        .radio-header p { font-size: 0.75rem; color: var(--text-dim); margin: 5px 0 25px; }
 
-        .live {
-            background: rgba(0, 200, 83, 0.15);
-            color: var(--on-air);
-            border: 1px solid var(--on-air);
-        }
-
-        .offline {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-dim);
-            border: 1px solid #333;
-        }
-
-        /* Botón de Play */
+        /* Botón con Spinner */
+        .player-rel { position: relative; width: 120px; height: 120px; margin: 0 auto 25px; }
+        
         .play-btn {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: var(--primary-red);
-            border: none;
-            color: white;
-            font-size: 32px;
-            cursor: pointer;
-            box-shadow: 0 10px 25px rgba(255, 59, 48, 0.3);
-            transition: transform 0.2s, background 0.3s;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto 30px;
-            outline: none;
+            width: 100%; height: 100%; border-radius: 50%;
+            background: var(--primary); border: none; color: white;
+            font-size: 35px; cursor: pointer; position: relative; z-index: 2;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        .play-btn:active {
-            transform: scale(0.92);
-        }
+        .play-btn.loading { background: #333; cursor: wait; }
 
-        .play-btn.playing {
-            background: #fff;
-            color: #000;
+        /* Spinner Sutil */
+        .spinner {
+            position: absolute; top: -5px; left: -5px; right: -5px; bottom: -5px;
+            border: 3px solid transparent; border-top-color: var(--primary);
+            border-radius: 50%; display: none;
+            animation: spin 1s linear infinite;
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Información de la pista */
-        .track-info {
-            min-height: 50px;
-            margin-bottom: 10px;
-        }
+        /* Info de Canción */
+        .track-info { min-height: 80px; margin-bottom: 20px; }
+        #artist { display: block; font-size: 0.85rem; color: var(--primary); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+        #title { display: block; font-size: 1.1rem; font-weight: 400; line-height: 1.2; }
 
-        #track {
-            font-size: 1.1rem;
-            font-weight: 700;
-            line-height: 1.4;
-            display: block;
-            margin-bottom: 8px;
-        }
+        /* Volumen */
+        .volume-container { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        input[type=range] { flex: 1; accent-color: var(--primary); cursor: pointer; }
 
-        .meta-extra {
-            font-size: 0.85rem;
-            color: var(--text-dim);
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-
-        /* Animación simple cuando está sonando */
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .is-playing-now {
-            animation: pulse 2s infinite ease-in-out;
-        }
+        .listeners { font-size: 0.7rem; color: var(--text-dim); }
     </style>
 </head>
-
 <body>
 
 <div class="container">
-    <h1>Entresijo Radio</h1>
+    <div id="datetime" class="datetime">--:-- | --/--/--</div>
+    
+    <div class="radio-header">
+        <h1 id="radio-name">Entresijo</h1>
+        <p id="radio-desc">Cargando emisora...</p>
+    </div>
 
-    <div id="status" class="status-badge offline">● Desconectado</div>
-
-    <button id="btn" class="play-btn">▶</button>
+    <div class="player-rel">
+        <div id="spinner" class="spinner"></div>
+        <button id="btn" class="play-btn">▶</button>
+    </div>
 
     <div class="track-info">
-        <span id="track">Cargando...</span>
-        <div class="meta-extra">
-            <span id="listeners"></span>
-        </div>
+        <span id="artist">—</span>
+        <span id="title">Conectando...</span>
     </div>
-    
-    <audio id="player" preload="none"></audio>
+
+    <div class="volume-container">
+        <span>🔈</span>
+        <input type="range" id="volume" min="0" max="1" step="0.1" value="0.8">
+        <span>🔊</span>
+    </div>
+
+    <div id="listeners" class="listeners">👥 0 oyentes</div>
 </div>
 
-<script>
-    // --- CONFIGURACIÓN ---
-    const WORKER_URL = "https://white-mud-e8b6.entresijoradio.workers.dev";
-    const STREAM_URL = `${WORKER_URL}/api/stream`;
-    const INFO_URL   = `${WORKER_URL}/api/radio-info`;
+<audio id="player"></audio>
 
-    const btn       = document.getElementById("btn");
-    const player    = document.getElementById("player");
-    const statusTag = document.getElementById("status");
-    const track     = document.getElementById("track");
-    const listeners = document.getElementById("listeners");
+<script>
+    const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
+    const btn = document.getElementById("btn");
+    const player = document.getElementById("player");
+    const spinner = document.getElementById("spinner");
+    const volume = document.getElementById("volume");
 
     let isPlaying = false;
 
-    // Actualiza la interfaz según si hay señal o no
-    function updateUI(data) {
-        if (data.isLive) {
-            statusTag.className = "status-badge live";
-            statusTag.innerText = "● EN EL AIRE";
-            track.innerText = data.nowPlaying || "Transmisión en vivo";
-            listeners.innerText = data.listeners !== undefined ? `👥 ${data.listeners} oyentes` : "";
-        } else {
-            statusTag.className = "status-badge offline";
-            statusTag.innerText = "● FUERA DEL AIRE";
-            track.innerText = "Radio fuera de línea";
-            listeners.innerText = "";
-        }
+    // Reloj en tiempo real
+    function updateTime() {
+        const now = new Date();
+        document.getElementById("datetime").innerText = 
+            now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + " | " + 
+            now.toLocaleDateString();
     }
+    setInterval(updateTime, 1000);
+    updateTime();
 
-    // Carga la metadata del Worker
-    async function fetchMetadata() {
+    // Cargar Metadata
+    async function fetchMeta() {
         try {
-            const res = await fetch(INFO_URL, { cache: "no-store" });
-            const data = await res.json();
-            updateUI(data);
-        } catch (e) {
-            console.error("Error metadata:", e);
-            statusTag.className = "status-badge offline";
-            statusTag.innerText = "● Error de conexión";
-        }
+            const res = await fetch(`${WORKER}/api/radio-info`);
+            const d = await res.json();
+            
+            document.getElementById("radio-name").innerText = d.radioName || "Entresijo";
+            document.getElementById("radio-desc").innerText = d.description || "";
+            document.getElementById("artist").innerText = d.artist || "En vivo";
+            document.getElementById("title").innerText = d.title || "Transmisión";
+            document.getElementById("listeners").innerText = `👥 ${d.listeners} oyentes`;
+        } catch(e) {}
     }
 
-    // Manejo del botón Play/Pause
-    btn.addEventListener("click", () => {
+    // Control de Reproducción
+    btn.addEventListener("click", async () => {
         if (!isPlaying) {
-            // Iniciar reproducción
-            player.src = STREAM_URL;
-            player.play().then(() => {
+            btn.classList.add("loading");
+            spinner.style.display = "block";
+            btn.innerText = ""; // Quitamos el icono mientras carga
+            
+            player.src = `${WORKER}/api/stream`;
+            try {
+                await player.play();
                 isPlaying = true;
                 btn.innerText = "⏸";
-                btn.classList.add("playing");
-                track.classList.add("is-playing-now");
-            }).catch(err => {
-                console.error("Error al reproducir:", err);
-                track.innerText = "Error al conectar stream";
-            });
+                btn.classList.remove("loading");
+                spinner.style.display = "none";
+            } catch(e) {
+                resetBtn();
+            }
         } else {
-            // Detener reproducción
             player.pause();
-            player.src = ""; // Liberar recursos y evitar descarga en segundo plano
+            player.src = "";
             isPlaying = false;
-            btn.innerText = "▶";
-            btn.classList.remove("playing");
-            track.classList.remove("is-playing-now");
+            resetBtn();
         }
     });
 
-    // Errores del reproductor
-    player.addEventListener("error", () => {
-        track.innerText = "Stream no disponible";
-        isPlaying = false;
+    function resetBtn() {
         btn.innerText = "▶";
-        btn.classList.remove("playing");
+        btn.classList.remove("loading");
+        spinner.style.display = "none";
+    }
+
+    // Volumen
+    volume.addEventListener("input", (e) => {
+        player.volume = e.target.value;
     });
 
-    // Intervalo de actualización de metadata (cada 15 segundos)
-    setInterval(fetchMetadata, 15000);
-    fetchMetadata(); // Carga inicial
+    setInterval(fetchMeta, 15000);
+    fetchMeta();
 </script>
-
 </body>
 </html>
