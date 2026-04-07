@@ -6,99 +6,83 @@
     <title>Entresijo Radio</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #ff3b30; --bg: #000000; --card: #0a0a0a; --text: #ffffff; --text-dim: #555; }
+        :root { --primary: #ff3b30; --bg: #000000; --text: #ffffff; --text-dim: #555; }
 
-        /* --- RESET TOTAL ANTI-NARANJA Y ANTI-AZUL --- */
-        * {
-            -webkit-tap-highlight-color: transparent !important;
-            outline: none !important;
-            box-shadow: none !important;
-        }
+        /* 1. ANIQUILACIÓN DE BORDES (Naranja/Azul) */
+        * { -webkit-tap-highlight-color: transparent !important; outline: none !important; }
+        *:focus { outline: none !important; box-shadow: none !important; }
 
         body { 
             margin: 0; background: var(--bg); color: var(--text); 
             font-family: 'Inter', sans-serif; display: flex; 
             justify-content: center; align-items: center; min-height: 100vh;
-            padding: 20px; overflow-x: hidden;
+            padding: 20px; overflow: hidden;
         }
 
-        .player-app { width: 100%; max-width: 440px; text-align: center; }
+        .player-app { width: 100%; max-width: 420px; text-align: center; }
 
         /* Header */
-        .top-bar { margin-bottom: 40px; }
-        #station-name { font-weight: 800; font-size: 15px; letter-spacing: 5px; color: var(--primary); display: block; margin-bottom: 10px; text-transform: uppercase; }
-        #description { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; display: block; }
-        #clock { font-size: 12px; color: var(--text-dim); letter-spacing: 1px; }
+        .top-bar { margin-bottom: 30px; }
+        #station-name { font-weight: 800; font-size: 15px; letter-spacing: 5px; color: var(--primary); display: block; margin-bottom: 8px; text-transform: uppercase; }
+        #description { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 10px; }
+        #clock { font-size: 12px; color: var(--text-dim); }
 
-        /* Badge con Atenuación Sutil */
+        /* Badge "EN EL AIRE" - Solo Atenuación */
         #status-badge { 
             font-size: 12px; font-weight: 800; padding: 10px 25px; 
-            border-radius: 4px; display: inline-block; margin-bottom: 40px;
-            text-transform: uppercase; letter-spacing: 3px;
-            border: 1px solid #222; color: #444; transition: 0.4s;
+            border-radius: 4px; display: inline-block; margin-bottom: 30px;
+            text-transform: uppercase; letter-spacing: 2px;
+            border: 1px solid #222; color: #444;
         }
         #status-badge.online { 
-            color: var(--primary); 
-            border-color: var(--primary); 
-            animation: glow-breath 2.5s infinite ease-in-out;
+            color: var(--primary); border-color: var(--primary); 
+            animation: glow-breath 2s infinite ease-in-out;
         }
-
         @keyframes glow-breath {
-            0%, 100% { opacity: 0.5; box-shadow: 0 0 5px rgba(255, 59, 48, 0.1); }
-            50% { opacity: 1; box-shadow: 0 0 25px rgba(255, 59, 48, 0.4); }
+            0%, 100% { opacity: 0.4; box-shadow: 0 0 5px rgba(255,39,48,0.1); }
+            50% { opacity: 1; box-shadow: 0 0 20px rgba(255,39,48,0.4); }
         }
 
         /* Core UI */
-        .core-ui { display: flex; align-items: center; justify-content: center; gap: 40px; margin-bottom: 50px; }
-        .play-outer { position: relative; width: 140px; height: 140px; }
+        .core-ui { display: flex; align-items: center; justify-content: center; gap: 40px; margin-bottom: 40px; }
+        .play-outer { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
 
-        .loading-ring {
-            position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px;
-            border: 4px solid transparent; border-top-color: var(--primary);
-            border-radius: 50%; display: none; animation: spin 1s linear infinite; z-index: 1;
-        }
-
-        #vu-canvas { position: absolute; top: -10px; left: -10px; z-index: 2; transform: rotate(-90deg); }
+        #vu-canvas { position: absolute; top: -10px; left: -10px; z-index: 2; transform: rotate(-90deg); pointer-events: none; }
 
         .play-btn {
             position: relative; z-index: 10; width: 100%; height: 100%; 
             border-radius: 50%; background: #111; border: 1px solid #222;
-            color: white; font-size: 45px; cursor: pointer; transition: 0.3s;
+            color: white; font-size: 45px; cursor: pointer; transition: 0.2s;
             display: flex; align-items: center; justify-content: center;
         }
-        .play-btn:active { transform: scale(0.95); }
-        .play-btn:disabled { opacity: 0.1; }
+        .play-btn:active { transform: scale(0.92); }
 
-        /* VOLUMEN CORREGIDO (Gris a Rojo) */
-        .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        /* VOLUMEN - Reconstrucción Total */
+        .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 10px; }
         .vol-slider {
             -webkit-appearance: slider-vertical;
-            appearance: slider-vertical;
-            width: 12px; height: 150px;
-            background: linear-gradient(to top, #222 0%, var(--primary) 100%);
-            border-radius: 10px; cursor: pointer;
+            width: 15px; height: 150px;
+            background: #1a1a1a; border-radius: 10px; cursor: pointer;
         }
-        /* Estilo del "pulgar" para asegurar que deslice en todo navegador */
+        /* Color del "pulgar" del slider */
         .vol-slider::-webkit-slider-thumb {
-            -webkit-appearance: none; appearance: none;
-            width: 24px; height: 12px; background: #fff; border-radius: 2px;
+            -webkit-appearance: none; width: 25px; height: 15px;
+            background: var(--primary); border-radius: 3px; cursor: pointer;
         }
 
-        .vol-label { font-size: 10px; color: var(--text-dim); font-weight: 800; letter-spacing: 2px; }
+        .vol-label { font-size: 11px; color: var(--text-dim); font-weight: 800; }
 
         /* Metadata */
-        .meta-display { margin-bottom: 50px; }
-        #artist { display: block; font-size: 14px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 12px; }
-        #title { display: block; font-size: 30px; font-weight: 200; line-height: 1.2; }
+        .meta-display { margin-bottom: 40px; }
+        #artist { display: block; font-size: 14px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+        #title { display: block; font-size: 28px; font-weight: 200; line-height: 1.2; }
 
         /* Historial */
         .history-wrap { text-align: left; border-top: 1px solid #111; padding-top: 20px; }
-        .history-toggle { background: none; border: none; color: var(--text-dim); font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
-        #history-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; margin-top: 15px; }
-        .h-item { font-size: 13px; margin-bottom: 15px; border-left: 2px solid #1a1a1a; padding-left: 12px; opacity: 0.7; }
-        .h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 10px; margin-bottom: 3px; }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .history-toggle { background: none; border: none; color: var(--text-dim); font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        #history-content { max-height: 0; overflow: hidden; transition: 0.4s ease; margin-top: 15px; }
+        .h-item { font-size: 13px; margin-bottom: 12px; border-left: 2px solid #1a1a1a; padding-left: 12px; opacity: 0.7; }
+        .h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 10px; }
     </style>
 </head>
 <body>
@@ -106,7 +90,7 @@
 <div class="player-app">
     <div class="top-bar">
         <span id="station-name">ENTRESIJO RADIO</span>
-        <span id="description">Cargando descripción...</span>
+        <span id="description">Cargando...</span>
         <div id="clock">--:-- — --/--/--</div>
     </div>
 
@@ -114,7 +98,6 @@
 
     <div class="core-ui">
         <div class="play-outer">
-            <div id="loading-ring" class="loading-ring"></div>
             <canvas id="vu-canvas" width="160" height="160"></canvas>
             <button id="btn" class="play-btn" disabled>▶</button>
         </div>
@@ -127,15 +110,13 @@
     </div>
 
     <div class="meta-display">
-        <span id="artist">ENTRESIJO</span>
-        <span id="title">Radio Serrana</span>
+        <span id="artist">ESCUCHANDO AHORA</span>
+        <span id="title">Conectando...</span>
     </div>
 
     <div class="history-wrap">
         <button class="history-toggle" onclick="toggleHistory()">Historial +</button>
-        <div id="history-content">
-            <div id="history-list"></div>
-        </div>
+        <div id="history-content"><div id="history-list"></div></div>
     </div>
 </div>
 
@@ -145,7 +126,6 @@
     const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
     const btn = document.getElementById("btn");
     const player = document.getElementById("player");
-    const ring = document.getElementById("loading-ring");
     const statusBadge = document.getElementById("status-badge");
     const canvas = document.getElementById("vu-canvas");
     const ctx = canvas.getContext("2d");
@@ -153,12 +133,14 @@
     let isPlaying = false;
     let audioCtx, analyser, dataArray;
 
+    // Reloj
     function updateClock() {
         const now = new Date();
         document.getElementById("clock").innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + " — " + now.toLocaleDateString([], {day: '2-digit', month:'2-digit', year:'2-digit'});
     }
     setInterval(updateClock, 1000); updateClock();
 
+    // Vúmetro
     function drawVu() {
         if(!isPlaying) { ctx.clearRect(0,0,160,160); return; }
         requestAnimationFrame(drawVu);
@@ -170,6 +152,7 @@
         ctx.beginPath(); ctx.arc(80, 80, 76, 0, limit); ctx.stroke();
     }
 
+    // Metadata
     async function fetchMeta() {
         try {
             const res = await fetch(`${WORKER}/api/radio-info`);
@@ -182,5 +165,69 @@
                 statusBadge.classList.add("online");
                 btn.disabled = false;
                 
-                // Cambio solicitado: "En vivo" -> "ESCUCHANDO AHORA"
-                document.getElementById("artist").innerText = (d.artist === "En vivo") ? "ESCUCHANDO AHORA" :
+                // Cambio: "En vivo" -> "ESCUCHANDO AHORA"
+                document.getElementById("artist").innerText = (d.artist === "En vivo") ? "ESCUCHANDO AHORA" : d.artist;
+                document.getElementById("title").innerText = d.title;
+                
+                if(d.history) {
+                    document.getElementById("history-list").innerHTML = d.history.map(h => `
+                        <div class="h-item"><strong>${h.artist}</strong>${h.title}</div>
+                    `).join('');
+                }
+            } else {
+                statusBadge.innerText = "OFFLINE";
+                statusBadge.classList.remove("online");
+                btn.disabled = true;
+                document.getElementById("title").innerText = "Transmisión pausada";
+            }
+        } catch(e) { console.error("Error de Red"); }
+    }
+
+    // El Gran Botón
+    btn.onclick = async () => {
+        if (!isPlaying) {
+            // Iniciar AudioContext (solo tras clic)
+            if(!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                const source = audioCtx.createMediaElementSource(player);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                analyser.fftSize = 64;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+            }
+            
+            statusBadge.innerText = "CONECTANDO...";
+            player.src = `${WORKER}/api/stream?t=${Date.now()}`;
+            try {
+                await player.play();
+                isPlaying = true; btn.innerText = "⏸";
+                statusBadge.innerText = "● EN EL AIRE";
+                drawVu();
+            } catch(e) { 
+                statusBadge.innerText = "Error de conexión";
+            }
+        } else {
+            isPlaying = false;
+            player.pause(); player.src = "";
+            btn.innerText = "▶";
+        }
+    };
+
+    // Volumen
+    document.getElementById("volume").oninput = (e) => { player.volume = e.target.value; };
+
+    // Historial
+    function toggleHistory() {
+        const content = document.getElementById("history-content");
+        content.style.maxHeight = content.style.maxHeight === "300px" ? "0" : "300px";
+    }
+
+    // Reconexión Automática (Blindaje)
+    player.addEventListener('error', () => { if(isPlaying) btn.click(); btn.click(); });
+    player.addEventListener('stalled', () => { if(isPlaying) { player.load(); player.play(); }});
+
+    setInterval(fetchMeta, 15000); fetchMeta();
+</script>
+</body>
+</html>
