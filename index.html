@@ -61,8 +61,8 @@ body {
 
 <script>
 
-const STREAM_URL = "https://uk15freenew.listen2myradio.com/live.mp3?typeportmount=ice_4243_stream_737103432"
-const META_URL   = "https://spring-sun-cde9.entresijoradio.workers.dev/"
+const STREAM_FALLBACK = "https://uk15freenew.listen2myradio.com/live.mp3?typeportmount=ice_4243_stream_737103432"
+const META_URL        = "https://spring-sun-cde9.entresijoradio.workers.dev/"
 
 const btn       = document.getElementById("btn")
 const player    = document.getElementById("player")
@@ -70,16 +70,13 @@ const onair     = document.getElementById("onair")
 const track     = document.getElementById("track")
 const listeners = document.getElementById("listeners")
 
-let playing = false
+let playing   = false
+let playProm  = null
+let streamURL = STREAM_FALLBACK
 
 function setOnAir(state) {
-  if (state) {
-    onair.className = "onair on"
-    onair.innerText = "● EN EL AIRE"
-  } else {
-    onair.className = "onair off"
-    onair.innerText = "● FUERA DEL AIRE"
-  }
+  onair.className = state ? "onair on" : "onair off"
+  onair.innerText = state ? "● EN EL AIRE" : "● FUERA DEL AIRE"
 }
 
 async function load() {
@@ -89,9 +86,11 @@ async function load() {
 
     if (data.error || !data.song) {
       setOnAir(false)
-      track.innerText    = "sin señal"
-      listeners.innerText = ""
       return
+    }
+
+    if (data.stream && data.stream.length > 10) {
+      streamURL = data.stream
     }
 
     setOnAir(true)
@@ -99,27 +98,39 @@ async function load() {
     listeners.innerText = data.listeners ? "👥 " + data.listeners : ""
 
   } catch(e) {
-    console.error("error metadata:", e)
+    console.error("metadata:", e)
     setOnAir(false)
-    track.innerText = "error: " + e.message
   }
 }
 
-btn.onclick = () => {
+btn.addEventListener("click", async () => {
   if (!playing) {
-    player.src = STREAM_URL
-    player.play().catch(err => { track.innerText = "error stream: " + err.message })
+    player.src = streamURL
     btn.innerText = "⏸"
-    playing = true
+    playing   = true
+    playProm  = player.play()
+    try {
+      await playProm
+    } catch(e) {
+      if (e.name !== "AbortError") {
+        track.innerText = "error al reproducir"
+        btn.innerText   = "▶"
+        playing = false
+      }
+    }
   } else {
+    playing  = false
+    playProm = null
     player.pause()
     btn.innerText = "▶"
-    playing = false
   }
-}
+})
 
-player.addEventListener("playing", () => { if (playing) setOnAir(true) })
-player.addEventListener("error",   () => { track.innerText = "stream no disponible" })
+player.addEventListener("error", () => {
+  track.innerText = "stream no disponible"
+  btn.innerText   = "▶"
+  playing = false
+})
 
 setInterval(load, 15000)
 load()
