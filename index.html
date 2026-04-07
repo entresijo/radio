@@ -5,19 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Entresijo Radio</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;800&display=swap" rel="stylesheet">
-    <style>
+   <style>
     :root { 
-        --primary: #80130f; /* Rojo sangre oscuro */
-        --primary-bright: #b31b14; /* Rojo para estados activos */
-        --bg: #050505; /* Gris casi negro */
-        --text: #e0e0e0; /* Blanco sutil / Gris muy claro */
-        --text-dim: #4a4a4a; /* Gris oscuro para etiquetas */
+        --primary: #80130f; 
+        --primary-bright: #b31b14; 
+        --bg: #050505; 
+        --text: #e0e0e0; 
+        --text-dim: #444; 
     }
 
-    /* RESET TOTAL */
     * { -webkit-tap-highlight-color: transparent !important; outline: none !important; box-sizing: border-box; }
-    *:focus { outline: none !important; }
-
+    
     body { 
         margin: 0; background: var(--bg); color: var(--text); 
         font-family: 'Inter', sans-serif; display: flex; 
@@ -31,104 +29,87 @@
     .top-bar { margin-bottom: 40px; }
     #station-name { font-weight: 800; font-size: 13px; letter-spacing: 6px; color: var(--primary-bright); display: block; margin-bottom: 12px; text-transform: uppercase; }
     #description { font-size: 10px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; display: block; margin-bottom: 8px; }
-    #clock { font-size: 11px; color: var(--text-dim); font-weight: 400; }
+    #clock { font-size: 11px; color: #333; }
 
-    /* Badge de Estado */
+    /* Badge */
     #status-badge { 
-        font-size: 13px; font-weight: 800; padding: 12px 35px; 
+        font-size: 12px; font-weight: 800; padding: 12px 30px; 
         border-radius: 4px; display: inline-block; margin-bottom: 50px;
         text-transform: uppercase; letter-spacing: 4px;
-        border: 1px solid #151515; color: #2a2a2a; transition: 0.4s;
+        border: 1px solid #111; color: #222;
     }
-    #status-badge.online { 
-        color: var(--primary-bright); 
-        border-color: #3d0907;
-        background: rgba(179, 27, 20, 0.02);
-        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); 
-    }
+    #status-badge.online { color: var(--primary-bright); border-color: #3d0907; }
 
-    /* Core UI - Centrado total */
+    /* CORE UI - El secreto del centrado */
     .core-ui { 
+        position: relative;
         display: flex; 
-        flex-direction: row; 
         align-items: center; 
-        justify-content: center; 
-        gap: 50px; 
-        margin-bottom: 50px; 
+        justify-content: center; /* Centra el contenido principal */
+        margin-bottom: 60px;
+        width: 100%;
     }
     
     .play-outer { 
         position: relative; 
-        width: 125px; /* Tamaño un poco más chico */
-        height: 125px; 
-        margin: 0; 
-        flex-shrink: 0; 
+        width: 120px; 
+        height: 120px; 
+        z-index: 5;
     }
 
-    /* Anillo de Carga */
+    /* VOLUMEN - Posicionado a la derecha sin afectar el centro del botón */
+    .vol-fader { 
+        position: absolute;
+        right: 0; /* Lo pega al borde derecho del contenedor */
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        gap: 10px; 
+        width: 40px;
+    }
+
     .loading-ring {
-        position: absolute; 
-        top: -8px; left: -8px; right: -8px; bottom: -8px;
+        position: absolute; top: -8px; left: -8px; right: -8px; bottom: -8px;
         border: 2px solid rgba(128, 19, 15, 0.05);
         border-top: 2px solid var(--primary-bright);
         border-radius: 50%; display: none;
         animation: spin 0.8s linear infinite; z-index: 1;
     }
 
-    #vu-canvas { 
-        position: absolute; 
-        top: -22px; /* Ajustado para centrar con el botón más chico */
-        left: -22px; 
-        z-index: 2; 
-        transform: rotate(-90deg); 
-        pointer-events: none; 
-    }
+    #vu-canvas { position: absolute; top: -25px; left: -25px; z-index: 2; transform: rotate(-90deg); pointer-events: none; }
 
-    /* Botón Play Elegante */
     .play-btn {
-        position: relative; 
-        z-index: 10; width: 100%; height: 100%; 
-        border-radius: 50%; background: #080808; 
-        border: 1px solid #252525;
-        color: var(--primary); 
-        font-size: 38px; cursor: pointer; transition: 0.3s;
+        position: relative; z-index: 10; width: 100%; height: 100%; 
+        border-radius: 50%; background: #080808; border: 1px solid #1a1a1a;
+        color: var(--primary); font-size: 35px; cursor: pointer; transition: 0.3s;
         display: flex; align-items: center; justify-content: center;
-        box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+        box-shadow: inset 0 0 20px rgba(0,0,0,1);
     }
-    .play-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary-bright); }
-    .play-btn:active { transform: scale(0.94); }
-    .play-btn:disabled { border-color: #151515; color: #151515; cursor: not-allowed; }
+    .play-btn:active { transform: scale(0.95); }
 
-    /* VOLUMEN */
-    .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    /* Slider Estilizado */
     .vol-slider {
-        -webkit-appearance: none; width: 140px; height: 3px;
-        background: #151515; border-radius: 10px;
-        transform: rotate(-90deg); margin: 60px 0; cursor: pointer;
+        -webkit-appearance: none; width: 120px; height: 2px;
+        background: #111; border-radius: 10px;
+        transform: rotate(-90deg); margin: 50px 0; cursor: pointer;
     }
     .vol-slider::-webkit-slider-thumb {
-        -webkit-appearance: none; width: 18px; height: 10px;
+        -webkit-appearance: none; width: 15px; height: 8px;
         background: var(--primary); border-radius: 1px;
-        transition: 0.2s;
     }
-    .vol-slider::-webkit-slider-thumb:hover { background: var(--primary-bright); }
-    .vol-label { font-size: 9px; color: var(--text-dim); font-weight: 800; letter-spacing: 2px; }
+    .vol-label { font-size: 9px; color: #333; font-weight: 800; letter-spacing: 1px; }
 
     /* Metadata */
     .meta-display { margin-bottom: 60px; }
-    #artist { display: block; font-size: 13px; font-weight: 700; color: var(--primary-bright); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 15px; opacity: 0.9; }
-    #title { display: block; font-size: 28px; font-weight: 200; line-height: 1.2; letter-spacing: -0.5px; color: var(--text); }
+    #artist { display: block; font-size: 13px; font-weight: 700; color: var(--primary-bright); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 15px; }
+    #title { display: block; font-size: 28px; font-weight: 200; line-height: 1.2; color: #fff; }
 
-    /* Historial */
-    .history-wrap { text-align: left; border-top: 1px solid #121212; padding-top: 35px; }
-    .history-toggle { background: none; border: none; color: #333; font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; transition: 0.3s; }
-    .history-toggle:hover { color: var(--text-dim); }
-    
-    #history-content { max-height: 0; overflow: hidden; transition: max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
-    .h-item { font-size: 13px; margin-bottom: 20px; border-left: 2px solid #2a0705; padding-left: 18px; transition: 0.3s; }
-    .h-item:hover { border-left-color: var(--primary); }
-    .h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 9px; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
-    .h-item span { color: #888; }
+    /* Historial Noir */
+    .history-wrap { text-align: left; border-top: 1px solid #0d0d0d; padding-top: 30px; }
+    .history-toggle { background: none; border: none; color: #222; font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; }
+    #history-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
+    .h-item { font-size: 13px; margin-top: 20px; border-left: 1px solid #200605; padding-left: 15px; }
+    .h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 9px; margin-bottom: 4px; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
     </style>
