@@ -175,30 +175,43 @@ body {
     }
 
     async function fetchMeta() {
-        try {
-            const res = await fetch(`${WORKER}/api/radio-info`);
-            const d = await res.json();
+    try {
+        const res = await fetch(`${WORKER}/api/radio-info`);
+        const d = await res.json();
+        
+        // Sincronización con los datos del Worker/JSON
+        document.getElementById("station-name").innerText = d.radioName || "ENTRESIJO RADIO";
+        
+        // Si tienes un elemento con id="description" lo actualiza
+        if(document.getElementById("description")) {
+            document.getElementById("description").innerText = d.description || "";
+        }
+        
+        if(d.isLive) {
+            statusBadge.innerText = "● EN EL AIRE";
+            statusBadge.classList.add("online");
+            btn.disabled = false;
+            document.getElementById("artist").innerText = d.artist || "ENTRESIJO";
+            document.getElementById("title").innerText = d.title || "Radio Serrana";
             
-            if(d.isLive) {
-                statusBadge.innerText = "● EN EL AIRE";
-                statusBadge.classList.add("online");
-                btn.disabled = false;
-                document.getElementById("artist").innerText = d.artist || "ENTRESIJO";
-                document.getElementById("title").innerText = d.title || "Radio Serrana";
-                
-                if(d.history) {
-                    document.getElementById("history-list").innerHTML = d.history.map(h => `
-                        <div class="h-item"><strong>${h.artist}</strong>${h.title}</div>
-                    `).join('');
-                }
-            } else {
-                statusBadge.innerText = "OFFLINE";
-                statusBadge.classList.remove("online");
-                btn.disabled = true;
-                document.getElementById("title").innerText = "Transmisión pausada";
+            if(d.history) {
+                document.getElementById("history-list").innerHTML = d.history.map(h => `
+                    <div class="h-item">
+                        <strong>${h.artist}</strong>
+                        ${h.title} <span class="h-time">${h.time || ''}</span>
+                    </div>
+                `).join('');
             }
-        } catch(e) { statusBadge.innerText = "Error de servidor"; }
+        } else {
+            statusBadge.innerText = "OFFLINE";
+            statusBadge.classList.remove("online");
+            btn.disabled = true;
+            document.getElementById("title").innerText = "Transmisión pausada";
+        }
+    } catch(e) { 
+        console.error("Error capturando metadata");
     }
+}
 
     btn.onclick = async () => {
         if (!isPlaying) {
