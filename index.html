@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Entresijo Radio</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #ff3b30; --bg: #050505; --card: #111; --text: #fff; --text-dim: #555; }
+        :root { --primary: #ff3b30; --bg: #000; --card: #0a0a0a; --text: #fff; --text-dim: #444; }
         
         body { 
             margin: 0; background: var(--bg); color: var(--text); 
@@ -14,203 +14,147 @@
             flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;
         }
 
-        .main-container {
+        .console {
             background: var(--card); border-radius: 40px; padding: 40px;
-            border: 1px solid #222; width: 320px; text-align: center;
-            box-shadow: 0 50px 100px rgba(0,0,0,0.8);
+            border: 1px solid #1a1a1a; width: 340px; position: relative;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.9);
         }
 
-        /* Badge de Estado Sutil */
-        .status-badge {
-            font-size: 10px; font-weight: 700; letter-spacing: 2px;
-            color: var(--text-dim); text-transform: uppercase; margin-bottom: 30px;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .status-badge.online { color: var(--primary); }
-        .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        /* Encabezado: Nombre Radio + Fecha/Hora */
+        .header-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
+        .radio-name { font-weight: 700; font-size: 12px; letter-spacing: 2px; color: var(--primary); text-transform: uppercase; }
+        .clock { font-size: 10px; color: var(--text-dim); text-align: right; line-height: 1.4; }
 
-        /* Consola de Control Central */
-        .control-core {
-            display: flex; align-items: center; justify-content: center;
-            gap: 25px; margin-bottom: 35px; position: relative;
-        }
+        /* Pantalla Central de Metadata */
+        .display-screen { text-align: center; margin-bottom: 40px; min-height: 100px; }
+        #artist { font-size: 11px; font-weight: 700; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+        #title { font-size: 22px; font-weight: 200; margin-top: 10px; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
-        /* Botón Play con Spinner Perimetral */
-        .btn-wrap { position: relative; width: 90px; height: 90px; }
-        
+        /* Controles Integrados */
+        .controls-row { display: flex; align-items: center; justify-content: space-around; margin-bottom: 30px; }
+
+        /* Botón Play con Anillo de Carga */
+        .play-outer { position: relative; width: 100px; height: 100px; }
         .play-btn {
             width: 100%; height: 100%; border-radius: 50%;
-            background: #1a1a1a; border: 1px solid #333; color: white;
-            font-size: 24px; cursor: pointer; position: relative; z-index: 10;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex; align-items: center; justify-content: center;
+            background: #111; border: 1px solid #222; color: white;
+            font-size: 30px; cursor: pointer; position: relative; z-index: 10;
+            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
         }
-        .play-btn:hover { border-color: var(--primary); transform: scale(1.05); }
-        .play-btn.active { background: var(--primary); border-color: var(--primary); }
-
-        .spinner {
-            position: absolute; top: -5px; left: -5px; right: -5px; bottom: -5px;
+        .play-btn.active { border-color: var(--primary); box-shadow: 0 0 30px rgba(255, 59, 48, 0.2); }
+        
+        .ring-spinner {
+            position: absolute; top: -4px; left: -4px; right: -4px; bottom: -4px;
             border: 2px solid transparent; border-top-color: var(--primary);
-            border-radius: 50%; display: none; animation: spin 0.8s linear infinite;
+            border-radius: 50%; display: none; animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Volumen Vertical Sutil */
-        .vol-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .vol-icon { font-size: 12px; color: var(--text-dim); }
+        .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 8px; }
         .vol-slider {
-            appearance: slider-vertical; width: 4px; height: 80px;
+            appearance: slider-vertical; width: 3px; height: 90px;
             background: #222; outline: none; border-radius: 2px;
-            cursor: pointer; accent-color: var(--primary);
+            accent-color: var(--primary);
         }
+        .vol-label { font-size: 8px; color: var(--text-dim); font-weight: 700; }
 
-        /* Vúmetro Minimalista */
-        .vumetro {
-            display: flex; align-items: center; justify-content: center;
-            gap: 2px; height: 20px; margin-bottom: 20px;
+        /* Footer: WhatsApp + Oyentes */
+        .footer-tools { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1a1a1a; padding-top: 25px; }
+        .ws-link { 
+            color: #25d366; text-decoration: none; font-size: 11px; 
+            font-weight: 700; display: flex; align-items: center; gap: 5px;
         }
-        .bar { width: 2px; background: var(--text-dim); height: 20%; transition: all 0.15s ease; }
-        .active-bar { background: var(--primary); }
+        .listeners { font-size: 10px; color: var(--text-dim); font-weight: 700; }
 
-        /* Metadata Textual */
-        .info-area { min-height: 80px; }
-        #artist { font-size: 11px; font-weight: 700; color: var(--primary); letter-spacing: 1px; text-transform: uppercase; }
-        #title { font-size: 18px; font-weight: 400; margin-top: 8px; display: block; opacity: 0.9; }
-
-        /* Historial Expandible */
-        .history-section {
-            width: 320px; margin-top: 20px; padding: 0 20px;
-            max-height: 0; overflow: hidden; transition: max-height 0.5s ease;
-        }
-        .history-section.visible { max-height: 300px; margin-bottom: 40px; }
-        .history-item { 
-            padding: 12px 0; border-bottom: 1px solid #1a1a1a; font-size: 12px; text-align: left;
-        }
-        .history-item strong { color: var(--primary); font-size: 10px; display: block; }
-
-        .toggle-history { 
-            background: none; border: none; color: var(--text-dim); 
-            font-size: 10px; cursor: pointer; margin-top: 15px; text-transform: uppercase;
-        }
     </style>
 </head>
 <body>
 
-<div class="main-container">
-    <div id="status-tag" class="status-badge">
-        <div class="dot"></div> <span id="status-text">Sin conexión</span>
+<div class="console">
+    <div class="header-info">
+        <div class="radio-name" id="radio-name">Entresijo Radio</div>
+        <div class="clock" id="datetime">--:--<br>--/--/--</div>
     </div>
 
-    <div class="vumetro" id="vumetro"></div>
-
-    <div class="control-core">
-        <div class="btn-wrap">
-            <div id="spinner" class="spinner"></div>
-            <button id="btn" class="play-btn">▶</button>
-        </div>
-
-        <div class="vol-wrap">
-            <span class="vol-icon">🔊</span>
-            <input type="range" id="volume" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
-            <span class="vol-icon" style="font-size: 8px;">VOL</span>
-        </div>
-    </div>
-
-    <div class="info-area">
-        <span id="artist">Entresijo</span>
+    <div class="display-screen">
+        <span id="artist">CONECTANDO</span>
         <span id="title">Radio Serrana</span>
     </div>
 
-    <button class="toggle-history" onclick="document.getElementById('history').classList.toggle('visible')">Historial ▼</button>
+    <div class="controls-row">
+        <div class="play-outer">
+            <div id="spinner" class="ring-spinner"></div>
+            <button id="btn" class="play-btn">▶</button>
+        </div>
+
+        <div class="vol-fader">
+            <span class="vol-label">MAX</span>
+            <input type="range" id="volume" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
+            <span class="vol-label">VOL</span>
+        </div>
+    </div>
+
+    <div class="footer-tools">
+        <a href="https://wa.me/TU_NUMERO" target="_blank" class="ws-link">
+            <span>WHATSAPP</span>
+        </a>
+        <div id="listeners" class="listeners">0 OYENTES</div>
+    </div>
 </div>
 
-<div id="history" class="history-section">
-    <div id="history-list"></div>
-</div>
-
-<audio id="player" crossorigin="anonymous"></audio>
+<audio id="player" crossorigin="anonymous" preload="none"></audio>
 
 <script>
     const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
     const btn = document.getElementById("btn");
     const player = document.getElementById("player");
     const spinner = document.getElementById("spinner");
-    const statusTag = document.getElementById("status-tag");
-    const statusText = document.getElementById("status-text");
 
-    let isPlaying = false;
-    let audioCtx, analyser, dataArray;
-
-    // Crear barras vúmetro
-    for(let i=0; i<20; i++) {
-        let b = document.createElement("div"); b.className = "bar";
-        document.getElementById("vumetro").appendChild(b);
+    function updateClock() {
+        const now = new Date();
+        const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const date = now.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: '2-digit' });
+        document.getElementById("datetime").innerHTML = `${time}<br>${date}`;
     }
-
-    function updateVisuals() {
-        if(!isPlaying) return;
-        requestAnimationFrame(updateVisuals);
-        analyser.getByteFrequencyData(dataArray);
-        const bars = document.querySelectorAll('.bar');
-        bars.forEach((bar, i) => {
-            let val = dataArray[i * 2] || 0;
-            bar.style.height = (val / 3) + 20 + "%";
-            bar.style.backgroundColor = val > 50 ? "#ff3b30" : "#333";
-        });
-    }
+    setInterval(updateClock, 1000);
+    updateClock();
 
     async function fetchMeta() {
         try {
             const res = await fetch(`${WORKER}/api/radio-info`);
             const d = await res.json();
             
+            document.getElementById("radio-name").innerText = d.radioName || "ENTRESIJO RADIO";
+            document.getElementById("listeners").innerText = `${d.listeners || 0} OYENTES`;
+            
             if(d.isLive) {
-                statusTag.classList.add("online");
-                statusText.innerText = "En el aire";
-                document.getElementById("artist").innerText = d.artist || "En vivo";
-                document.getElementById("title").innerText = d.title || "Entresijo";
-                
-                if (d.history) {
-                    document.getElementById("history-list").innerHTML = d.history.map(h => `
-                        <div class="history-item"><strong>${h.artist}</strong> ${h.title}</div>
-                    `).join('');
-                }
+                document.getElementById("artist").innerText = d.artist || "EN VIVO";
+                document.getElementById("title").innerText = d.title || "ENTRESIJO";
             } else {
-                statusTag.classList.remove("online");
-                statusText.innerText = "Fuera de línea";
+                document.getElementById("artist").innerText = "OFFLINE";
+                document.getElementById("title").innerText = "ENSEGUIDA VOLVEMOS";
             }
-        } catch(e) { console.error("Metadata error"); }
+        } catch(e) { console.error("Meta fail"); }
     }
 
+    let isPlaying = false;
     btn.onclick = async () => {
         if (!isPlaying) {
-            if(!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser();
-                const source = audioCtx.createMediaElementSource(player);
-                source.connect(analyser);
-                analyser.connect(audioCtx.destination);
-                analyser.fftSize = 64;
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
-            }
-
             btn.innerText = "";
             spinner.style.display = "block";
-            statusText.innerText = "Conectando...";
-
+            btn.classList.add("active");
+            
             player.src = `${WORKER}/api/stream?t=${Date.now()}`;
             try {
                 await player.play();
                 isPlaying = true;
                 btn.innerText = "⏸";
-                btn.classList.add("active");
                 spinner.style.display = "none";
-                statusText.innerText = "En vivo";
-                updateVisuals();
             } catch(e) {
                 btn.innerText = "▶";
                 spinner.style.display = "none";
-                statusText.innerText = "Error";
+                btn.classList.remove("active");
             }
         } else {
             isPlaying = false;
@@ -218,8 +162,6 @@
             player.src = "";
             btn.innerText = "▶";
             btn.classList.remove("active");
-            statusText.innerText = "Pausa";
-            document.querySelectorAll('.bar').forEach(b => b.style.height = "20%");
         }
     };
 
