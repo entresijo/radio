@@ -29,40 +29,72 @@
 
         /* Badge de Estado */
         #status-badge { 
-            font-size: 11px; font-weight: 800; padding: 8px 25px; 
-            border-radius: 4px; display: inline-block; margin-bottom: 40px;
-            text-transform: uppercase; letter-spacing: 2px;
-            border: 1px solid #222; color: #444; transition: 0.4s;
-        }
-        #status-badge.online { color: var(--primary); border-color: var(--primary); box-shadow: 0 0 15px rgba(255, 59, 48, 0.2); }
+    font-size: 14px; /* Aumentado */
+    font-weight: 800; 
+    padding: 12px 35px; 
+    border-radius: 4px; 
+    display: inline-block; 
+    margin-bottom: 50px;
+    text-transform: uppercase; 
+    letter-spacing: 4px; /* Más aire entre letras */
+    border: 1px solid #1a1a1a; /* Gris muy oscuro */
+    color: #333; /* Gris apagado */
+    transition: 0.4s;
+}
+#status-badge.online { 
+    color: #b31b14; /* Rojo más oscuro/sangre */
+    border-color: #4d0b08; 
+    box-shadow: 0 0 20px rgba(179, 27, 20, 0.15); 
+}
 
         /* Core UI */
         .core-ui { display: flex; align-items: center; justify-content: center; gap: 40px; margin-bottom: 50px; }
         
-        .play-outer { position: relative; width: 150px; height: 150px; flex-shrink: 0; }
-
+        .play-outer { 
+    position: relative; 
+    width: 120px; /* Reducido de 150px a 120px */
+    height: 120px; 
+    margin: 0 auto; /* FUERZA EL CENTRADO horizontal */
+    flex-shrink: 0; 
+}
+ 
         /* Anillo de Carga (Spin) */
-        .loading-ring {
-            position: absolute; top: -8px; left: -8px; right: -8px; bottom: -8px;
-            border: 3px solid rgba(255, 59, 48, 0.1);
-            border-top: 3px solid var(--primary);
-            border-radius: 50%; display: none;
-            animation: spin 0.8s linear infinite; z-index: 1;
-        }
+.loading-ring {
+    position: absolute; 
+    top: -6px; left: -6px; right: -6px; bottom: -6px;
+    border: 2px solid rgba(128, 19, 15, 0.1);
+    border-top: 2px solid #b31b14; /* Rojo oscuro */
+    border-radius: 50%; 
+    display: none;
+    animation: spin 0.8s linear infinite; 
+    z-index: 1;
+}
 
-        /* Vúmetro Canvas */
-        #vu-canvas { position: absolute; top: -10px; left: -10px; z-index: 2; transform: rotate(-90deg); pointer-events: none; }
-
+#vu-canvas { 
+    position: absolute; 
+    top: -10px; 
+    left: -10px; 
+    z-index: 2; 
+    transform: rotate(-90deg); 
+    pointer-events: none; 
+}
         /* Botón con más Rojo */
-        .play-btn {
-            position: relative; z-index: 10; width: 100%; height: 100%; 
-            border-radius: 50%; background: #000; 
-            border: 2px solid var(--primary); /* Más rojo en el borde */
-            color: var(--primary); /* Icono rojo */
-            font-size: 50px; cursor: pointer; transition: 0.3s;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: inset 0 0 20px rgba(255, 59, 48, 0.1);
-        }
+.play-btn {
+    position: relative; 
+    z-index: 10; 
+    width: 100%; 
+    height: 100%; 
+    border-radius: 50%; 
+    background: #080808; /* Gris casi negro */
+    border: 2px solid #80130f; /* Rojo oscuro quemado */
+    color: #80130f; 
+    font-size: 35px; /* Icono más pequeño acorde al botón */
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    transition: 0.3s;
+}
         .play-btn:active { transform: scale(0.94); }
         .play-btn:disabled { border-color: #222; color: #222; cursor: not-allowed; }
 
@@ -86,7 +118,15 @@
         #title { display: block; font-size: 30px; font-weight: 200; line-height: 1.1; letter-spacing: -0.5px; }
 
         /* Historial Recuperado y Elegante */
-        .history-wrap { text-align: left; border-top: 1px solid #151515; padding-top: 30px; }
+        .history-wrap { 
+    text-align: left; 
+    border-top: 1px solid #0d0d0d; /* Casi invisible */
+    padding-top: 30px; 
+}
+.h-item { 
+    border-left: 2px solid #4d0b08; /* Rojo muy oscuro */
+    color: #888; /* Gris medio para el texto */
+}
         .history-toggle { background: none; border: none; color: var(--text-dim); font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
         #history-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
         .h-item { font-size: 13px; margin-bottom: 15px; border-left: 2px solid var(--primary); padding-left: 15px; opacity: 0.7; }
@@ -159,7 +199,7 @@
         ctx.lineWidth = 4; ctx.strokeStyle = "#ff3b30";
         const avg = dataArray.reduce((a,b) => a+b) / dataArray.length;
         const limit = (avg / 255) * Math.PI * 2;
-        ctx.beginPath(); ctx.arc(85, 85, 80, 0, limit); ctx.stroke();
+        ctx.beginPath(); ctx.arc(85, 85, 70, 0, limit); ctx.stroke();
     }
 
     async function fetchMeta() {
