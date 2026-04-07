@@ -1,3 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entresijo</title>
+
+<style>
+body {
+  margin:0;
+  background:#000;
+  color:#fff;
+  font-family:Arial;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+
+.container { text-align:center; width:90%; max-width:400px; }
+
+.onair {
+  padding:6px 14px;
+  border-radius:20px;
+  margin-bottom:20px;
+}
+.on { background:red; }
+.off { background:#00c853; color:black; }
+
+.play-btn {
+  width:120px;
+  height:120px;
+  border-radius:50%;
+  background:red;
+  border:none;
+  color:white;
+  font-size:40px;
+}
+
+.track { margin-top:20px; font-weight:bold; }
+.listeners { font-size:0.8em; opacity:0.7; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🎵 Entresijo</h1>
+
+<div id="onair" class="onair off">● FUERA DEL AIRE</div>
+
+<button id="btn" class="play-btn">▶</button>
+
+<div id="track">—</div>
+<div id="listeners"></div>
+
+<audio id="player"></audio>
+
+</div>
+
+<script>
+
 const STREAM_URL = "https://uk15freenew.listen2myradio.com/live.mp3?typeportmount=ice_4243_stream_737103432"
 const META_URL   = "https://spring-sun-cde9.entresijoradio.workers.dev/"
 
@@ -60,3 +123,8 @@ player.addEventListener("error",   () => { track.innerText = "stream no disponib
 
 setInterval(load, 15000)
 load()
+
+</script>
+
+</body>
+</html>
