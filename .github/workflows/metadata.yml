@@ -1,8 +1,8 @@
-name: Update Radio Metadata
+name: Radio Auto Update
 
 on:
   schedule:
-    - cron: "*/2 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,21 +10,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Fetch HTML
-        run: |
-          curl -s http://uk15freenew.listen2myradio.com:4243/ > raw.html
-          head -n 20 raw.html
+      - name: Install deps
+        run: pip install requests
 
       - name: Run parser
         run: python3 parse.py
 
-      - name: Commit & Push
+      - name: Commit
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.name "bot"
+          git config user.email "bot@github.com"
           git add metadata.json
-          git commit -m "update metadata" || echo "Sin cambios"
+          git commit -m "update" || echo "no changes"
           git push
