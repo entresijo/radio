@@ -2,36 +2,22 @@ import re
 import time
 import requests
 
-URL = "https://entresijo.radiostream123.com/"
+ICECAST = "http://uk15freenew.listen2myradio.com:4243/"
 
-html = requests.get(URL, timeout=10).text
+try:
+    html = requests.get(ICECAST, timeout=10).text
 
-# ===== STREAM =====
-stream_match = re.search(r'(https://[^"]+live\.mp3[^"]+)', html)
-stream = stream_match.group(1) if stream_match else ""
+    song_match = re.search(r'Current Song:</td>\s*<td[^>]*>(.*?)</td>', html, re.I)
+    listeners_match = re.search(r'Current Listeners:</td>\s*<td[^>]*>(\d+)', html, re.I)
 
-# ===== ICECAST SERVER =====
-server_match = re.search(r'(http://[^"]+:\d+/)', html)
-server = server_match.group(1) if server_match else ""
+    song = song_match.group(1).strip() if song_match else ""
+    listeners = int(listeners_match.group(1)) if listeners_match else 0
 
-song = ""
-listeners = 0
-
-if server:
-    try:
-        icecast_html = requests.get(server, timeout=10).text
-
-        song_match = re.search(r'Current Song:</td>\s*<td[^>]*>(.*?)</td>', icecast_html, re.I)
-        listeners_match = re.search(r'Current Listeners:</td>\s*<td[^>]*>(\d+)', icecast_html, re.I)
-
-        song = song_match.group(1).strip() if song_match else ""
-        listeners = int(listeners_match.group(1)) if listeners_match else 0
-
-    except:
-        pass
+except:
+    song = ""
+    listeners = 0
 
 data = {
-    "stream": stream,
     "song": song,
     "listeners": listeners,
     "timestamp": int(time.time())
