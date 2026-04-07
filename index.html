@@ -13,33 +13,48 @@
             font-family: 'Inter', sans-serif; display: flex; 
             justify-content: center; align-items: center; min-height: 100vh;
             padding: 20px;
+            /* Elimina el resaltado azul en todo el cuerpo */
+            -webkit-tap-highlight-color: transparent;
         }
 
         .player-app { width: 100%; max-width: 400px; text-align: center; }
 
-        /* Header Superior */
-        .top-bar { margin-bottom: 50px; }
+        /* 1. RESET RADICAL DE FOCO (Adios Naranja) */
+        *:focus, *:active, *:focus-visible {
+            outline: none !important;
+            outline: 0 !important;
+            -webkit-tap-highlight-color: transparent !important;
+        }
+
+        /* 2. Header Superior */
+        .top-bar { margin-bottom: 40px; }
         #station-name { font-weight: 800; font-size: 12px; letter-spacing: 4px; color: var(--primary); display: block; margin-bottom: 8px; }
         #clock { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; }
 
-        /* Badge de Estado */
+        /* 3. Badge de Estado (Más grande y con Glow Animado) */
         #status-badge { 
-            font-size: 10px; font-weight: 800; padding: 6px 18px; 
-            border-radius: 4px; display: inline-block; margin-bottom: 40px;
-            text-transform: uppercase; letter-spacing: 2px;
-            border: 1px solid #222; color: #444; transition: 0.4s;
-        }
-        #status-badge.online { color: var(--primary); border-color: var(--primary); box-shadow: 0 0 15px rgba(255,59,48,0.15); }
-
-        /* Bloque Central de Control */
-        .core-ui { 
-            display: flex; align-items: center; justify-content: center; 
-            gap: 40px; margin-bottom: 50px;
+            font-size: 12px; font-weight: 800; padding: 8px 24px; 
+            border-radius: 6px; display: inline-block; margin-bottom: 40px;
+            text-transform: uppercase; letter-spacing: 3px;
+            border: 1px solid #222; color: #444; transition: all 0.5s ease;
         }
 
+        #status-badge.online { 
+            color: var(--primary); 
+            border-color: var(--primary); 
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px rgba(255, 59, 48, 0.2); transform: scale(1); }
+            50% { box-shadow: 0 0 20px rgba(255, 59, 48, 0.5); transform: scale(1.05); }
+            100% { box-shadow: 0 0 5px rgba(255, 59, 48, 0.2); transform: scale(1); }
+        }
+
+        /* 4. Bloque Central */
+        .core-ui { display: flex; align-items: center; justify-content: center; gap: 40px; margin-bottom: 50px; }
         .play-outer { position: relative; width: 140px; height: 140px; }
-        
-        /* Spinner de Carga Perimetral */
+
         .loading-ring {
             position: absolute; top: -8px; left: -8px; right: -8px; bottom: -8px;
             border: 3px solid transparent; border-top-color: var(--primary);
@@ -47,115 +62,51 @@
             z-index: 1;
         }
 
-        /* Canvas Vúmetro Circular */
         #vu-canvas { position: absolute; top: -8px; left: -8px; z-index: 2; transform: rotate(-90deg); }
 
         .play-btn {
             position: relative; z-index: 10; width: 100%; height: 100%; 
             border-radius: 50%; background: #111; border: 1px solid #222;
-            color: white; font-size: 40px; cursor: pointer; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: white; font-size: 40px; cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; align-items: center; justify-content: center;
         }
-        .play-btn:active { transform: scale(0.92); }
-        .play-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        .play-btn:active { transform: scale(0.92); background: #151515; }
+        .play-btn:disabled { opacity: 0.1; cursor: not-allowed; }
 
-        /* Volumen Vertical */
+        /* 5. Slider de Volumen (Corregido para que no se rompa) */
         .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 12px; }
         .vol-slider {
-            appearance: slider-vertical; width: 5px; height: 120px;
-            background: #1a1a1a; outline: none; border-radius: 10px; accent-color: var(--primary);
+            -webkit-appearance: slider-vertical; /* Solo aquí para que funcione el fader */
+            width: 8px; height: 120px;
+            background: #1a1a1a; border-radius: 10px;
+            cursor: pointer;
         }
+        
+        /* Estilo para el "puntero" del slider en Chrome/Safari */
+        .vol-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px; height: 16px;
+            background: var(--primary); border-radius: 50%;
+            cursor: pointer; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
         .vol-label { font-size: 10px; color: var(--text-dim); font-weight: 800; }
 
-        /* Now Playing */
+        /* 6. Metadata */
         .meta-display { margin-bottom: 50px; padding: 0 10px; }
-        #artist { display: block; font-size: 12px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
-        #title { display: block; font-size: 24px; font-weight: 200; line-height: 1.2; }
+        #artist { display: block; font-size: 13px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
+        #title { display: block; font-size: 26px; font-weight: 200; line-height: 1.2; }
 
-        /* Historial Desplegable */
+        /* 7. Historial */
         .history-wrap { text-align: left; border-top: 1px solid #111; padding-top: 20px; }
-        .history-toggle { 
-            background: none; border: none; color: var(--text-dim); font-size: 10px; 
-            font-weight: 800; cursor: pointer; padding: 0; text-transform: uppercase; letter-spacing: 1px;
-        }
-        #history-content { 
-            max-height: 0; overflow: hidden; transition: max-height 0.4s ease; 
-            margin-top: 15px;
-        }
+        .history-toggle { background: none; border: none; color: var(--text-dim); font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        #history-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; margin-top: 15px; }
         .h-item { font-size: 12px; margin-bottom: 12px; border-left: 2px solid #1a1a1a; padding-left: 10px; opacity: 0.7; }
         .h-item strong { color: var(--primary); font-weight: 400; display: block; font-size: 10px; }
 
         @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* --- RESET DE INTERACCIONES NATIVAS --- */
-
-/* 1. Bloqueo total de bordes nativos (El martillazo) */
-button, 
-input, 
-select, 
-textarea, 
-a {
-    outline: none !important;
-    -webkit-appearance: none !important;
-    -webkit-tap-highlight-color: transparent !important;
-    -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
-}
-
-/* 2. Específicamente para el botón de Play */
-.play-btn {
-    position: relative; 
-    z-index: 10; 
-    width: 100%; 
-    height: 100%; 
-    border-radius: 50%; 
-    background: #111; 
-    border: 1px solid #222;
-    color: white; 
-    font-size: 40px; 
-    cursor: pointer;
-    transition: all 0.2s ease;
-    
-    /* Elimina cualquier sombra de foco interna de sistema */
-    box-shadow: none !important;
-}
-
-/* 3. Evitar el recuadro naranja de Google Chrome / Edge */
-.play-btn:focus, 
-.play-btn:active, 
-.play-btn:focus-visible {
-    outline: 0 !important;
-    outline: none !important;
-    border: 1px solid rgba(255, 59, 48, 0.5) !important; /* Borde rojo sutil en lugar de naranja */
-    box-shadow: 0 0 15px rgba(255, 59, 48, 0.2) !important; /* Brillo rojo elegante */
-}
-
-/* 4. Corregir el estado en móviles (iOS/Android) */
-@media (hover: none) {
-    .play-btn:focus,
-    .play-btn:active {
-        background: #111 !important;
-        outline: none !important;
-    }
-}
-
-/* Efecto al presionar (Toque) - Reemplaza el recuadro azul con algo sutil */
-.play-btn:active {
-    transform: scale(0.92);
-    background: #151515;
-    border-color: rgba(255, 59, 48, 0.4);
-}
-
-/* Efecto de Foco/Selección - Reemplaza el recuadro naranja con un brillo rojo */
-.play-btn:focus-visible {
-    box-shadow: 0 0 25px rgba(255, 59, 48, 0.3);
-    border-color: var(--primary);
-}
-
-/* Evita que el botón se vea grisáceo al estar deshabilitado por el sistema */
-.play-btn:disabled {
-    opacity: 0.2;
-    cursor: not-allowed;
-    filter: grayscale(1);
-}
     </style>
 </head>
 <body>
