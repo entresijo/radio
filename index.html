@@ -141,6 +141,16 @@
         try {
             const res = await fetch(`${WORKER}/api/radio-info`);
             const d = await res.json();
+            if (d.history && d.history.length > 0) {
+    const historyHtml = d.history.map(item => `
+        <div style="font-size: 0.75rem; padding: 10px 0; border-bottom: 1px solid #222;">
+            <strong style="color: var(--primary); display: block;">${item.artist}</strong>
+            <span>${item.title}</span>
+            <small style="display: block; opacity: 0.5; font-size: 0.6rem;">${item.time}</small>
+        </div>
+    `).join('');
+    document.getElementById("history-list").innerHTML = historyHtml;
+}
             if(d.isLive) {
                 if(!isPlaying) {
                     statusTag.className = "status-badge st-online";
