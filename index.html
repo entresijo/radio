@@ -8,7 +8,6 @@
     <style>
         :root { --primary: #ff3b30; --bg: #000000; --text: #ffffff; --text-dim: #555; }
 
-        /* 1. ANIQUILACIÓN DE BORDES (Naranja/Azul) */
         * { -webkit-tap-highlight-color: transparent !important; outline: none !important; }
         *:focus { outline: none !important; box-shadow: none !important; }
 
@@ -21,13 +20,11 @@
 
         .player-app { width: 100%; max-width: 420px; text-align: center; }
 
-        /* Header */
         .top-bar { margin-bottom: 30px; }
         #station-name { font-weight: 800; font-size: 15px; letter-spacing: 5px; color: var(--primary); display: block; margin-bottom: 8px; text-transform: uppercase; }
         #description { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 10px; }
         #clock { font-size: 12px; color: var(--text-dim); }
 
-        /* Badge "EN EL AIRE" - Solo Atenuación */
         #status-badge { 
             font-size: 12px; font-weight: 800; padding: 10px 25px; 
             border-radius: 4px; display: inline-block; margin-bottom: 30px;
@@ -43,7 +40,6 @@
             50% { opacity: 1; box-shadow: 0 0 20px rgba(255,39,48,0.4); }
         }
 
-        /* Core UI */
         .core-ui { display: flex; align-items: center; justify-content: center; gap: 40px; margin-bottom: 40px; }
         .play-outer { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
 
@@ -55,34 +51,33 @@
             color: white; font-size: 45px; cursor: pointer; transition: 0.2s;
             display: flex; align-items: center; justify-content: center;
         }
-        .play-btn:active { transform: scale(0.92); }
 
-        /* VOLUMEN - Reconstrucción Total */
-        .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        /* VOLUMEN - Solución con Transform para evitar el Azul */
+        .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 40px; }
         .vol-slider {
-            -webkit-appearance: slider-vertical;
-            width: 15px; height: 150px;
-            background: #1a1a1a; border-radius: 10px; cursor: pointer;
+            -webkit-appearance: none;
+            width: 140px; height: 6px; /* Invertimos dimensiones para rotar */
+            background: #1a1a1a; 
+            border-radius: 10px;
+            transform: rotate(-90deg); /* Lo volvemos vertical */
+            margin: 60px 0; /* Espacio para la rotación */
+            cursor: pointer;
         }
-        /* Color del "pulgar" del slider */
         .vol-slider::-webkit-slider-thumb {
             -webkit-appearance: none; width: 25px; height: 15px;
-            background: var(--primary); border-radius: 3px; cursor: pointer;
+            background: var(--primary); border-radius: 3px;
         }
 
         .vol-label { font-size: 11px; color: var(--text-dim); font-weight: 800; }
 
-        /* Metadata */
         .meta-display { margin-bottom: 40px; }
         #artist { display: block; font-size: 14px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
         #title { display: block; font-size: 28px; font-weight: 200; line-height: 1.2; }
 
-        /* Historial */
         .history-wrap { text-align: left; border-top: 1px solid #111; padding-top: 20px; }
         .history-toggle { background: none; border: none; color: var(--text-dim); font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
         #history-content { max-height: 0; overflow: hidden; transition: 0.4s ease; margin-top: 15px; }
         .h-item { font-size: 13px; margin-bottom: 12px; border-left: 2px solid #1a1a1a; padding-left: 12px; opacity: 0.7; }
-        .h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 10px; }
     </style>
 </head>
 <body>
@@ -131,16 +126,15 @@
     const ctx = canvas.getContext("2d");
 
     let isPlaying = false;
+    let isUserPaused = true; // Control para evitar reconexión al pausar
     let audioCtx, analyser, dataArray;
 
-    // Reloj
     function updateClock() {
         const now = new Date();
         document.getElementById("clock").innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + " — " + now.toLocaleDateString([], {day: '2-digit', month:'2-digit', year:'2-digit'});
     }
     setInterval(updateClock, 1000); updateClock();
 
-    // Vúmetro
     function drawVu() {
         if(!isPlaying) { ctx.clearRect(0,0,160,160); return; }
         requestAnimationFrame(drawVu);
@@ -152,25 +146,20 @@
         ctx.beginPath(); ctx.arc(80, 80, 76, 0, limit); ctx.stroke();
     }
 
-    // Metadata
     async function fetchMeta() {
         try {
             const res = await fetch(`${WORKER}/api/radio-info`);
             const d = await res.json();
             document.getElementById("station-name").innerText = d.radioName || "ENTRESIJO RADIO";
             document.getElementById("description").innerText = d.description || "";
-
             if(d.isLive) {
                 statusBadge.innerText = "● EN EL AIRE";
                 statusBadge.classList.add("online");
                 btn.disabled = false;
-                
-                // Cambio: "En vivo" -> "ESCUCHANDO AHORA"
                 document.getElementById("artist").innerText = (d.artist === "En vivo") ? "ESCUCHANDO AHORA" : d.artist;
                 document.getElementById("title").innerText = d.title;
-                
                 if(d.history) {
-                    document.getElementById("history-list").innerHTML = d.history.map(h => `
+                    document.getElementById("history-list").innerHTML = d.history.slice(0,5).map(h => `
                         <div class="h-item"><strong>${h.artist}</strong>${h.title}</div>
                     `).join('');
                 }
@@ -178,15 +167,13 @@
                 statusBadge.innerText = "OFFLINE";
                 statusBadge.classList.remove("online");
                 btn.disabled = true;
-                document.getElementById("title").innerText = "Transmisión pausada";
             }
-        } catch(e) { console.error("Error de Red"); }
+        } catch(e) {}
     }
 
-    // El Gran Botón
     btn.onclick = async () => {
         if (!isPlaying) {
-            // Iniciar AudioContext (solo tras clic)
+            isUserPaused = false;
             if(!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioCtx.createAnalyser();
@@ -196,7 +183,6 @@
                 analyser.fftSize = 64;
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
             }
-            
             statusBadge.innerText = "CONECTANDO...";
             player.src = `${WORKER}/api/stream?t=${Date.now()}`;
             try {
@@ -204,28 +190,31 @@
                 isPlaying = true; btn.innerText = "⏸";
                 statusBadge.innerText = "● EN EL AIRE";
                 drawVu();
-            } catch(e) { 
-                statusBadge.innerText = "Error de conexión";
-            }
+            } catch(e) { statusBadge.innerText = "Error de conexión"; }
         } else {
+            isUserPaused = true;
             isPlaying = false;
-            player.pause(); player.src = "";
+            player.pause(); 
+            player.src = ""; // Vaciar para no consumir datos
             btn.innerText = "▶";
+            statusBadge.innerText = "● EN EL AIRE";
         }
     };
 
-    // Volumen
     document.getElementById("volume").oninput = (e) => { player.volume = e.target.value; };
 
-    // Historial
     function toggleHistory() {
         const content = document.getElementById("history-content");
         content.style.maxHeight = content.style.maxHeight === "300px" ? "0" : "300px";
     }
 
-    // Reconexión Automática (Blindaje)
-    player.addEventListener('error', () => { if(isPlaying) btn.click(); btn.click(); });
-    player.addEventListener('stalled', () => { if(isPlaying) { player.load(); player.play(); }});
+    // Reconexión INTELIGENTE
+    player.addEventListener('error', () => {
+        if(!isUserPaused) {
+            console.log("Error de stream, intentando reconectar...");
+            setTimeout(() => { if(!isUserPaused) btn.click(); btn.click(); }, 1000);
+        }
+    });
 
     setInterval(fetchMeta, 15000); fetchMeta();
 </script>
