@@ -1,4 +1,4 @@
-name: Update Radio Metadata
+name: Radio Metadata
 
 on:
   schedule:
@@ -12,19 +12,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install deps
+      - name: Install Python deps
         run: pip install requests
 
       - name: Run parser
         run: python3 parse.py
 
-      - name: Commit & Push
+      - name: Force commit
         run: |
           git config user.name "bot"
           git config user.email "bot@github.com"
 
-          echo "$(date)" > heartbeat.txt
+          date > heartbeat.txt
 
-          git add metadata.json heartbeat.txt
-          git commit -m "update" || echo "no changes"
+          git add .
+          git commit -m "auto update" || echo "no changes"
           git push
