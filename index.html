@@ -6,109 +6,57 @@
     <title>Entresijo Radio</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #ff3b30; --bg: #000000; --card: #0a0a0a; --text: #ffffff; --text-dim: #555; }
-
-body { 
-    margin: 0; background: var(--bg); color: var(--text); 
-    font-family: 'Inter', sans-serif; display: flex; 
-    justify-content: center; align-items: center; min-height: 100vh;
-    padding: 20px; -webkit-tap-highlight-color: transparent !important;
-}
-
-/* --- ANIQUILACIÓN DEL RECUADRO NARANJA --- */
-*:focus, *:active, *:focus-visible, button:focus, audio:focus {
+        /* --- RESET DE FOCO (ADIÓS NARANJA) --- */
+*:focus, *:active, *:focus-visible {
     outline: none !important;
     outline: 0 !important;
     box-shadow: none !important;
     -webkit-tap-highlight-color: transparent !important;
 }
 
-.player-app { 
-    width: 100%; 
-    max-width: 440px; /* Un poco más ancho */
-    text-align: center; 
-}
+/* --- SLIDER VERTICAL FUNCIONAL --- */
+.vol-fader { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
-/* Header */
-.top-bar { margin-bottom: 50px; }
-#station-name { font-weight: 800; font-size: 14px; letter-spacing: 5px; color: var(--primary); display: block; margin-bottom: 10px; text-transform: uppercase; }
-#description { font-size: 12px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; display: block; }
-#clock { font-size: 13px; color: var(--text-dim); letter-spacing: 1px; }
-
-/* Badge de Estado con Atenuación */
-#status-badge { 
-    font-size: 13px; font-weight: 800; padding: 10px 30px; 
-    border-radius: 6px; display: inline-block; margin-bottom: 45px;
-    text-transform: uppercase; letter-spacing: 3px;
-    border: 1px solid #222; color: #333; transition: all 0.5s ease;
-}
-
-#status-badge.online { 
-    color: var(--primary); 
-    border-color: var(--primary); 
-    animation: glow-breath 2.5s infinite ease-in-out;
-}
-
-@keyframes glow-breath {
-    0%, 100% { box-shadow: 0 0 5px rgba(255, 59, 48, 0.1); opacity: 0.6; }
-    50% { box-shadow: 0 0 30px rgba(255, 59, 48, 0.4); opacity: 1; }
-}
-
-/* Core UI */
-.core-ui { display: flex; align-items: center; justify-content: center; gap: 50px; margin-bottom: 60px; }
-.play-outer { position: relative; width: 140px; height: 140px; } /* El botón se queda igual */
-
-.loading-ring {
-    position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px;
-    border: 4px solid transparent; border-top-color: var(--primary);
-    border-radius: 50%; display: none; animation: spin 1s linear infinite; z-index: 1;
-}
-
-#vu-canvas { position: absolute; top: -10px; left: -10px; z-index: 2; transform: rotate(-90deg); }
-
-.play-btn {
-    position: relative; z-index: 10; width: 100%; height: 100%; 
-    border-radius: 50%; background: #0e0e0e; border: 1px solid #222;
-    color: white; font-size: 45px; cursor: pointer; 
-    transition: transform 0.2s ease;
-    display: flex; align-items: center; justify-content: center;
-    -webkit-appearance: none;
-}
-.play-btn:active { transform: scale(0.92); }
-
-/* VOLUMEN CORREGIDO: Rojo a Gris Oscuro */
-.vol-fader { display: flex; flex-direction: column; align-items: center; gap: 15px; }
 .vol-slider {
-    -webkit-appearance: none;
-    width: 8px; height: 150px; /* Más alto */
-    background: linear-gradient(to top, #222 0%, var(--primary) 100%);
-    border-radius: 10px; cursor: pointer;
-}
-
-.vol-slider::-webkit-slider-thumb {
-    -webkit-appearance: none; 
-    width: 24px; height: 12px;
-    background: #fff; border-radius: 3px; 
-    box-shadow: 0 0 15px rgba(0,0,0,0.8);
+    /* Esta es la forma más estable de hacerlo vertical hoy en día */
+    appearance: slider-vertical;
+    -webkit-appearance: slider-vertical; 
+    width: 8px;
+    height: 140px;
+    background: #1a1a1a; /* Fondo gris oscuro */
     cursor: pointer;
 }
 
-.vol-label { font-size: 12px; color: var(--text-dim); font-weight: 800; letter-spacing: 2px; }
-.vol-icon { font-size: 22px; opacity: 0.6; margin-top: 5px;}
+/* Estilo del "cabezal" para que sea arrastrable en móvil */
+.vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 12px;
+    background: var(--primary); /* Rojo */
+    border-radius: 2px;
+    cursor: pointer;
+}
 
-/* Metadata */
-.meta-display { margin-bottom: 60px; }
-#artist { display: block; font-size: 15px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 15px; }
-#title { display: block; font-size: 32px; font-weight: 200; line-height: 1.1; }
+.vol-label { 
+    font-size: 10px; /* Más pequeño como pediste */
+    color: var(--text-dim); 
+    font-weight: 800; 
+    letter-spacing: 2px; 
+}
 
-/* Historial */
-.history-wrap { text-align: left; border-top: 1px solid #111; padding-top: 25px; }
-.history-toggle { background: none; border: none; color: var(--text-dim); font-size: 12px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
-#history-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
-.h-item { font-size: 14px; margin-bottom: 18px; border-left: 3px solid #1a1a1a; padding-left: 15px; opacity: 0.8; }
-.h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 11px; margin-bottom: 4px; }
+/* --- MEJORAS DE TAMAÑO GENERAL --- */
+#station-name { font-size: 14px; }
+#description { font-size: 11px; }
+#title { font-size: 30px; } /* Grande y elegante */
+#artist { font-size: 14px; }
 
-@keyframes spin { to { transform: rotate(360deg); } }}
+/* Botón Play sin bordes extraños */
+.play-btn {
+    border: none !important; /* Quitamos bordes físicos que puedan brillar */
+    background: #0e0e0e;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5); /* Sombra interna sutil */
+}
     </style>
 </head>
 <body>
@@ -184,43 +132,63 @@ body {
         ctx.stroke();
     }
 
-    async function fetchMeta() {
+    // --- FUNCIÓN DE RECONEXIÓN AUTOMÁTICA ---
+function handleReconnect() {
+    if (isPlaying) {
+        console.log("Detectada caída de stream. Reconectando...");
+        statusBadge.innerText = "RECONECTANDO...";
+        player.pause();
+        player.src = ""; // Limpiamos buffer
+        player.load();
+        
+        // Esperamos un segundo y reintentamos
+        setTimeout(() => {
+            player.src = `${WORKER}/api/stream?t=${Date.now()}`;
+            player.play().catch(e => console.log("Reintento fallido, esperando al siguiente ciclo."));
+        }, 2000);
+    }
+}
+
+// Escuchadores de error del reproductor
+player.onerror = handleReconnect;
+player.onstalled = handleReconnect; // Se dispara cuando el buffer se vacía y no llega más data
+
+// --- FETCH META CON "ESCUCHANDO AHORA" ---
+async function fetchMeta() {
     try {
         const res = await fetch(`${WORKER}/api/radio-info`);
         const d = await res.json();
         
-        // Sincronización con los datos del Worker/JSON
-        document.getElementById("station-name").innerText = d.radioName || "ENTRESIJO RADIO";
-        
-        // Si tienes un elemento con id="description" lo actualiza
-        if(document.getElementById("description")) {
-            document.getElementById("description").innerText = d.description || "";
-        }
-        
+        document.getElementById("station-name").innerText = d.radioName;
+        document.getElementById("description").innerText = d.description;
+
         if(d.isLive) {
             statusBadge.innerText = "● EN EL AIRE";
             statusBadge.classList.add("online");
             btn.disabled = false;
-            document.getElementById("artist").innerText = d.artist || "ENTRESIJO";
-            document.getElementById("title").innerText = d.title || "Radio Serrana";
             
+            // Reemplazo solicitado
+            let artistText = (d.artist === "En vivo") ? "ESCUCHANDO AHORA" : d.artist;
+            document.getElementById("artist").innerText = artistText;
+            document.getElementById("title").innerText = d.title;
+            
+            // Historial con hora
             if(d.history) {
                 document.getElementById("history-list").innerHTML = d.history.map(h => `
                     <div class="h-item">
                         <strong>${h.artist}</strong>
-                        ${h.title} <span class="h-time">${h.time || ''}</span>
+                        ${h.title} <span style="font-size:9px; opacity:0.5">${h.time || ''}</span>
                     </div>
                 `).join('');
             }
         } else {
+            // Si el worker dice que está offline, detenemos el player
             statusBadge.innerText = "OFFLINE";
             statusBadge.classList.remove("online");
+            if(isPlaying) btn.click(); // Pausa automática si se cae la radio
             btn.disabled = true;
-            document.getElementById("title").innerText = "Transmisión pausada";
         }
-    } catch(e) { 
-        console.error("Error capturando metadata");
-    }
+    } catch(e) { console.error("Error de Metadata"); }
 }
 
     btn.onclick = async () => {
