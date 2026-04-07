@@ -1,4 +1,12 @@
-:root { --primary: #ff3b30; --bg: #000000; --card: #0a0a0a; --text: #ffffff; --text-dim: #555; }
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entresijo Radio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #ff3b30; --bg: #000000; --card: #0a0a0a; --text: #ffffff; --text-dim: #555; }
 
 body { 
     margin: 0; background: var(--bg); color: var(--text); 
@@ -91,3 +99,154 @@ body {
 .h-time { font-size: 9px; color: #444; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="player-app">
+    <div class="top-bar">
+        <span id="station-name">ENTRESIJO RADIO</span>
+        <div id="clock">--:-- — --/--/--</div>
+    </div>
+
+    <div id="status-badge">Detectando señal...</div>
+
+    <div class="core-ui">
+        <div class="play-outer">
+            <div id="loading-ring" class="loading-ring"></div>
+            <canvas id="vu-canvas" width="156" height="156"></canvas>
+            <button id="btn" class="play-btn" disabled>▶</button>
+        </div>
+
+        <div class="vol-fader">
+            <span class="vol-label">MAX</span>
+            <input type="range" id="volume" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
+            <span class="vol-label">🔊</span>
+        </div>
+    </div>
+
+    <div class="meta-display">
+        <span id="artist">ENTRESIJO</span>
+        <span id="title">Radio Serrana</span>
+    </div>
+
+    <div class="history-wrap">
+        <button class="history-toggle" onclick="toggleHistory()">Historial +</button>
+        <div id="history-content">
+            <div id="history-list"></div>
+        </div>
+    </div>
+</div>
+
+<audio id="player" crossorigin="anonymous"></audio>
+
+<script>
+    const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
+    const btn = document.getElementById("btn");
+    const player = document.getElementById("player");
+    const ring = document.getElementById("loading-ring");
+    const statusBadge = document.getElementById("status-badge");
+    const canvas = document.getElementById("vu-canvas");
+    const ctx = canvas.getContext("2d");
+
+    let isPlaying = false;
+    let audioCtx, analyser, dataArray;
+
+    function updateClock() {
+        const now = new Date();
+        const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const date = now.toLocaleDateString([], {day: '2-digit', month:'2-digit', year:'2-digit'});
+        document.getElementById("clock").innerText = `${time} — ${date}`;
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    function drawVu() {
+        if(!isPlaying) { ctx.clearRect(0,0,156,156); return; }
+        requestAnimationFrame(drawVu);
+        analyser.getByteFrequencyData(dataArray);
+        ctx.clearRect(0,0,156,156);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#ff3b30";
+        const avg = dataArray.reduce((a,b) => a+b) / dataArray.length;
+        const limit = (avg / 255) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(78, 78, 74, 0, limit);
+        ctx.stroke();
+    }
+
+    async function fetchMeta() {
+        try {
+            const res = await fetch(`${WORKER}/api/radio-info`);
+            const d = await res.json();
+            
+            if(d.isLive) {
+                statusBadge.innerText = "● EN EL AIRE";
+                statusBadge.classList.add("online");
+                btn.disabled = false;
+                document.getElementById("artist").innerText = d.artist || "ENTRESIJO";
+                document.getElementById("title").innerText = d.title || "Radio Serrana";
+                
+                if(d.history) {
+                    document.getElementById("history-list").innerHTML = d.history.map(h => `
+                        <div class="h-item"><strong>${h.artist}</strong>${h.title}</div>
+                    `).join('');
+                }
+            } else {
+                statusBadge.innerText = "OFFLINE";
+                statusBadge.classList.remove("online");
+                btn.disabled = true;
+                document.getElementById("title").innerText = "Transmisión pausada";
+            }
+        } catch(e) { statusBadge.innerText = "Error de servidor"; }
+    }
+
+    btn.onclick = async () => {
+        if (!isPlaying) {
+            if(!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                const source = audioCtx.createMediaElementSource(player);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                analyser.fftSize = 64;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+            }
+            
+            btn.innerText = "";
+            ring.style.display = "block";
+            statusBadge.innerText = "CONECTANDO...";
+            
+            player.src = `${WORKER}/api/stream?t=${Date.now()}`;
+            try {
+                await player.play();
+                isPlaying = true;
+                btn.innerText = "⏸";
+                ring.style.display = "none";
+                statusBadge.innerText = "● EN EL AIRE";
+                drawVu();
+            } catch(e) { 
+                btn.innerText = "▶"; 
+                ring.style.display = "none";
+                statusBadge.innerText = "Error de conexión";
+            }
+        } else {
+            isPlaying = false;
+            player.pause();
+            player.src = "";
+            btn.innerText = "▶";
+            statusBadge.innerText = "● EN EL AIRE";
+            ctx.clearRect(0,0,156,156);
+        }
+    };
+
+    function toggleHistory() {
+        const content = document.getElementById("history-content");
+        content.style.maxHeight = content.style.maxHeight === "300px" ? "0" : "300px";
+    }
+
+    document.getElementById("volume").oninput = (e) => player.volume = e.target.value;
+    setInterval(fetchMeta, 15000);
+    fetchMeta();
+</script>
+</body>
+</html>
