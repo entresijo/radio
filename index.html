@@ -11,7 +11,8 @@
         body { 
             margin: 0; background: var(--bg); color: var(--text); 
             font-family: 'Inter', sans-serif; display: flex; 
-            justify-content: center; align-items: center; min-height: 100vh;
+            flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;
+            padding: 20px;
         }
 
         /* Contenedor Principal */
@@ -19,10 +20,10 @@
             background: var(--card); border-radius: 32px; padding: 30px;
             border: 1px solid #222; display: flex; gap: 25px;
             box-shadow: 0 40px 80px rgba(0,0,0,0.6); position: relative;
+            max-width: 450px; width: 100%;
         }
 
-        /* Panel Izquierdo: Control e Info */
-        .main-controls { width: 280px; text-align: center; }
+        .main-controls { flex: 1; text-align: center; }
 
         .status-badge {
             font-size: 0.65rem; font-weight: 900; padding: 5px 12px;
@@ -33,20 +34,18 @@
         .st-connecting { background: #ca8a04; color: white; }
         .st-online { background: var(--primary); color: white; box-shadow: 0 0 15px rgba(255,59,48,0.4); }
 
-        /* Vúmetro Real */
         .vumetro {
             display: flex; align-items: flex-end; justify-content: center;
             gap: 3px; height: 40px; margin-bottom: 20px;
         }
         .bar { width: 4px; background: var(--primary); border-radius: 2px; height: 5%; transition: height 0.1s ease; }
 
-        /* Botón de Play con Spinner */
         .btn-container { position: relative; width: 110px; height: 110px; margin: 0 auto 25px; }
         .play-btn {
             width: 100%; height: 100%; border-radius: 50%;
             background: var(--primary); border: none; color: white;
             font-size: 38px; cursor: pointer; position: relative; z-index: 5;
-            transition: transform 0.2s;
+            transition: transform 0.2s; display: flex; align-items: center; justify-content: center;
         }
         .play-btn:active { transform: scale(0.95); }
         
@@ -57,11 +56,9 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Texto */
         #artist { color: var(--primary); font-weight: 800; font-size: 0.85rem; text-transform: uppercase; display: block; }
         #title { font-size: 1.25rem; font-weight: 400; margin-top: 5px; display: block; line-height: 1.2; }
 
-        /* Panel Derecho: Volumen Integrado */
         .vol-control {
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; gap: 10px; padding-left: 15px;
@@ -72,6 +69,17 @@
             accent-color: var(--primary); cursor: pointer;
         }
 
+        /* Historial */
+        .history-card {
+            background: var(--card); border-radius: 24px; margin-top: 20px;
+            padding: 20px; border: 1px solid #222; width: 100%; max-width: 450px;
+        }
+        .history-card h3 { font-size: 0.8rem; margin: 0 0 15px; text-transform: uppercase; color: var(--text-dim); }
+        .history-item { font-size: 0.8rem; padding: 10px 0; border-bottom: 1px solid #222; }
+        .history-item:last-child { border: none; }
+        .history-item strong { color: var(--primary); display: block; }
+        .history-item small { opacity: 0.5; font-size: 0.7rem; }
+
         .meta-footer { font-size: 0.7rem; color: var(--text-dim); margin-top: 20px; }
     </style>
 </head>
@@ -80,7 +88,6 @@
 <div class="player-card">
     <div class="main-controls">
         <div id="status" class="status-badge st-offline">Sin señal</div>
-        
         <div id="vumetro" class="vumetro"></div>
 
         <div class="btn-container">
@@ -105,6 +112,13 @@
     </div>
 </div>
 
+<div class="history-card">
+    <h3>📜 Últimos temas</h3>
+    <div id="history-list">
+        <p style="font-size: 0.8rem; color: var(--text-dim);">No hay historial disponible aún.</p>
+    </div>
+</div>
+
 <audio id="player" crossorigin="anonymous"></audio>
 
 <script>
@@ -114,18 +128,17 @@
     const spinner = document.getElementById("spinner");
     const statusTag = document.getElementById("status");
     const vumetro = document.getElementById("vumetro");
+    const historyList = document.getElementById("history-list");
 
     let isPlaying = false;
     let audioCtx, analyser, dataArray, source;
 
-    // Crear barras del vúmetro
     for(let i=0; i<12; i++) {
         let b = document.createElement("div");
         b.className = "bar";
         vumetro.appendChild(b);
     }
 
-    // Función para el movimiento real de las barras
     function updateVisuals() {
         if(!isPlaying) return;
         requestAnimationFrame(updateVisuals);
@@ -141,16 +154,18 @@
         try {
             const res = await fetch(`${WORKER}/api/radio-info`);
             const d = await res.json();
+            
+            // Actualizar Historial
             if (d.history && d.history.length > 0) {
-    const historyHtml = d.history.map(item => `
-        <div style="font-size: 0.75rem; padding: 10px 0; border-bottom: 1px solid #222;">
-            <strong style="color: var(--primary); display: block;">${item.artist}</strong>
-            <span>${item.title}</span>
-            <small style="display: block; opacity: 0.5; font-size: 0.6rem;">${item.time}</small>
-        </div>
-    `).join('');
-    document.getElementById("history-list").innerHTML = historyHtml;
-}
+                historyList.innerHTML = d.history.map(item => `
+                    <div class="history-item">
+                        <strong>${item.artist}</strong>
+                        <span>${item.title}</span><br>
+                        <small>${item.time}</small>
+                    </div>
+                `).join('');
+            }
+
             if(d.isLive) {
                 if(!isPlaying) {
                     statusTag.className = "status-badge st-online";
@@ -165,12 +180,13 @@
                 document.getElementById("artist").innerText = "Offline";
                 document.getElementById("title").innerText = "Enseguida volvemos";
             }
-        } catch(e) {}
+        } catch(e) {
+            console.error("Error fetching metadata");
+        }
     }
 
     btn.onclick = async () => {
         if (!isPlaying) {
-            // Inicializar AudioContext en el primer clic (requisito navegador)
             if(!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioCtx.createAnalyser();
@@ -197,6 +213,7 @@
                 updateVisuals();
             } catch(e) {
                 resetBtn();
+                statusTag.innerText = "Error de conexión";
             }
         } else {
             isPlaying = false;
@@ -208,14 +225,3 @@
     };
 
     function resetBtn() {
-        btn.innerText = "▶";
-        spinner.style.display = "none";
-    }
-
-    document.getElementById("volume").oninput = (e) => player.volume = e.target.value;
-
-    setInterval(fetchMeta, 15000);
-    fetchMeta();
-</script>
-</body>
-</html>
