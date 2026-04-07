@@ -85,6 +85,55 @@
         .h-item strong { color: var(--primary); font-weight: 400; display: block; font-size: 10px; }
 
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* --- RESET DE INTERACCIONES NATIVAS --- */
+
+/* 1. Elimina el recuadro naranja/celeste de foco en todos los navegadores */
+*:focus {
+    outline: none !important;
+}
+
+/* 2. Elimina el recuadro azul/celeste transparente al tocar en móviles */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* --- REACCIÓN PREMIUM DEL BOTÓN --- */
+
+.play-btn {
+    position: relative; 
+    z-index: 10; 
+    width: 100%; 
+    height: 100%; 
+    border-radius: 50%; 
+    background: #111; 
+    border: 1px solid #222;
+    color: white; 
+    font-size: 40px; 
+    cursor: pointer;
+    /* Transición suave para todos los estados */
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Efecto al presionar (Toque) - Reemplaza el recuadro azul con algo sutil */
+.play-btn:active {
+    transform: scale(0.92);
+    background: #151515;
+    border-color: rgba(255, 59, 48, 0.4);
+}
+
+/* Efecto de Foco/Selección - Reemplaza el recuadro naranja con un brillo rojo */
+.play-btn:focus-visible {
+    box-shadow: 0 0 25px rgba(255, 59, 48, 0.3);
+    border-color: var(--primary);
+}
+
+/* Evita que el botón se vea grisáceo al estar deshabilitado por el sistema */
+.play-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+    filter: grayscale(1);
+}
     </style>
 </head>
 <body>
