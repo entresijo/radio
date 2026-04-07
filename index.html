@@ -6,133 +6,132 @@
     <title>Entresijo Radio</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #ff3b30; --bg: #000000; --text: #ffffff; --text-dim: #666; }
+        <style>
+    :root { 
+        --primary: #80130f; /* Rojo sangre oscuro */
+        --primary-bright: #b31b14; /* Rojo para estados activos */
+        --bg: #050505; /* Gris casi negro */
+        --text: #e0e0e0; /* Blanco sutil / Gris muy claro */
+        --text-dim: #4a4a4a; /* Gris oscuro para etiquetas */
+    }
 
-        /* RESET TOTAL */
-        * { -webkit-tap-highlight-color: transparent !important; outline: none !important; box-sizing: border-box; }
-        *:focus { outline: none !important; }
+    /* RESET TOTAL */
+    * { -webkit-tap-highlight-color: transparent !important; outline: none !important; box-sizing: border-box; }
+    *:focus { outline: none !important; }
 
-        body { 
-            margin: 0; background: var(--bg); color: var(--text); 
-            font-family: 'Inter', sans-serif; display: flex; 
-            justify-content: center; align-items: center; min-height: 100vh;
-            padding: 20px; overflow-x: hidden;
-        }
+    body { 
+        margin: 0; background: var(--bg); color: var(--text); 
+        font-family: 'Inter', sans-serif; display: flex; 
+        justify-content: center; align-items: center; min-height: 100vh;
+        padding: 20px; overflow-x: hidden;
+    }
 
-        .player-app { width: 100%; max-width: 440px; text-align: center; }
+    .player-app { width: 100%; max-width: 440px; text-align: center; }
 
-        /* Header */
-        .top-bar { margin-bottom: 40px; }
-        #station-name { font-weight: 800; font-size: 14px; letter-spacing: 6px; color: var(--primary); display: block; margin-bottom: 12px; text-transform: uppercase; }
-        #description { font-size: 11px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; display: block; margin-bottom: 8px; }
-        #clock { font-size: 12px; color: var(--text-dim); font-weight: 400; }
+    /* Header */
+    .top-bar { margin-bottom: 40px; }
+    #station-name { font-weight: 800; font-size: 13px; letter-spacing: 6px; color: var(--primary-bright); display: block; margin-bottom: 12px; text-transform: uppercase; }
+    #description { font-size: 10px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; display: block; margin-bottom: 8px; }
+    #clock { font-size: 11px; color: var(--text-dim); font-weight: 400; }
 
-        /* Badge de Estado */
-        #status-badge { 
-    font-size: 14px; /* Aumentado */
-    font-weight: 800; 
-    padding: 12px 35px; 
-    border-radius: 4px; 
-    display: inline-block; 
-    margin-bottom: 50px;
-    text-transform: uppercase; 
-    letter-spacing: 4px; /* Más aire entre letras */
-    border: 1px solid #1a1a1a; /* Gris muy oscuro */
-    color: #333; /* Gris apagado */
-    transition: 0.4s;
-}
-#status-badge.online { 
-    color: #b31b14; /* Rojo más oscuro/sangre */
-    border-color: #4d0b08; 
-    box-shadow: 0 0 20px rgba(179, 27, 20, 0.15); 
-}
+    /* Badge de Estado */
+    #status-badge { 
+        font-size: 13px; font-weight: 800; padding: 12px 35px; 
+        border-radius: 4px; display: inline-block; margin-bottom: 50px;
+        text-transform: uppercase; letter-spacing: 4px;
+        border: 1px solid #151515; color: #2a2a2a; transition: 0.4s;
+    }
+    #status-badge.online { 
+        color: var(--primary-bright); 
+        border-color: #3d0907;
+        background: rgba(179, 27, 20, 0.02);
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); 
+    }
 
-        /* Core UI */
-        .core-ui { display: flex; align-items: center; justify-content: center; gap: 40px; margin-bottom: 50px; }
-        
-        .play-outer { 
-    position: relative; 
-    width: 120px; /* Reducido de 150px a 120px */
-    height: 120px; 
-    margin: 0 auto; /* FUERZA EL CENTRADO horizontal */
-    flex-shrink: 0; 
-}
- 
-        /* Anillo de Carga (Spin) */
-.loading-ring {
-    position: absolute; 
-    top: -6px; left: -6px; right: -6px; bottom: -6px;
-    border: 2px solid rgba(128, 19, 15, 0.1);
-    border-top: 2px solid #b31b14; /* Rojo oscuro */
-    border-radius: 50%; 
-    display: none;
-    animation: spin 0.8s linear infinite; 
-    z-index: 1;
-}
+    /* Core UI - Centrado total */
+    .core-ui { 
+        display: flex; 
+        flex-direction: row; 
+        align-items: center; 
+        justify-content: center; 
+        gap: 50px; 
+        margin-bottom: 50px; 
+    }
+    
+    .play-outer { 
+        position: relative; 
+        width: 125px; /* Tamaño un poco más chico */
+        height: 125px; 
+        margin: 0; 
+        flex-shrink: 0; 
+    }
 
-#vu-canvas { 
-    position: absolute; 
-    top: -10px; 
-    left: -10px; 
-    z-index: 2; 
-    transform: rotate(-90deg); 
-    pointer-events: none; 
-}
-        /* Botón con más Rojo */
-.play-btn {
-    position: relative; 
-    z-index: 10; 
-    width: 100%; 
-    height: 100%; 
-    border-radius: 50%; 
-    background: #080808; /* Gris casi negro */
-    border: 2px solid #80130f; /* Rojo oscuro quemado */
-    color: #80130f; 
-    font-size: 35px; /* Icono más pequeño acorde al botón */
-    cursor: pointer; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    transition: 0.3s;
-}
-        .play-btn:active { transform: scale(0.94); }
-        .play-btn:disabled { border-color: #222; color: #222; cursor: not-allowed; }
+    /* Anillo de Carga */
+    .loading-ring {
+        position: absolute; 
+        top: -8px; left: -8px; right: -8px; bottom: -8px;
+        border: 2px solid rgba(128, 19, 15, 0.05);
+        border-top: 2px solid var(--primary-bright);
+        border-radius: 50%; display: none;
+        animation: spin 0.8s linear infinite; z-index: 1;
+    }
 
-        /* VOLUMEN ROJO */
-        .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-        .vol-slider {
-            -webkit-appearance: none; width: 140px; height: 4px;
-            background: #1a1a1a; border-radius: 10px;
-            transform: rotate(-90deg); margin: 60px 0; cursor: pointer;
-        }
-        .vol-slider::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 20px; height: 12px;
-            background: var(--primary); border-radius: 2px;
-            box-shadow: 0 0 10px rgba(255, 59, 48, 0.4);
-        }
-        .vol-label { font-size: 10px; color: var(--text-dim); font-weight: 800; letter-spacing: 2px; }
+    #vu-canvas { 
+        position: absolute; 
+        top: -22px; /* Ajustado para centrar con el botón más chico */
+        left: -22px; 
+        z-index: 2; 
+        transform: rotate(-90deg); 
+        pointer-events: none; 
+    }
 
-        /* Metadata */
-        .meta-display { margin-bottom: 50px; }
-        #artist { display: block; font-size: 14px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 12px; }
-        #title { display: block; font-size: 30px; font-weight: 200; line-height: 1.1; letter-spacing: -0.5px; }
+    /* Botón Play Elegante */
+    .play-btn {
+        position: relative; 
+        z-index: 10; width: 100%; height: 100%; 
+        border-radius: 50%; background: #080808; 
+        border: 1px solid #252525;
+        color: var(--primary); 
+        font-size: 38px; cursor: pointer; transition: 0.3s;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+    }
+    .play-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary-bright); }
+    .play-btn:active { transform: scale(0.94); }
+    .play-btn:disabled { border-color: #151515; color: #151515; cursor: not-allowed; }
 
-        /* Historial Recuperado y Elegante */
-        .history-wrap { 
-    text-align: left; 
-    border-top: 1px solid #0d0d0d; /* Casi invisible */
-    padding-top: 30px; 
-}
-.h-item { 
-    border-left: 2px solid #4d0b08; /* Rojo muy oscuro */
-    color: #888; /* Gris medio para el texto */
-}
-        .history-toggle { background: none; border: none; color: var(--text-dim); font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
-        #history-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
-        .h-item { font-size: 13px; margin-bottom: 15px; border-left: 2px solid var(--primary); padding-left: 15px; opacity: 0.7; }
-        .h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 10px; text-transform: uppercase; margin-bottom: 3px; }
+    /* VOLUMEN */
+    .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .vol-slider {
+        -webkit-appearance: none; width: 140px; height: 3px;
+        background: #151515; border-radius: 10px;
+        transform: rotate(-90deg); margin: 60px 0; cursor: pointer;
+    }
+    .vol-slider::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 18px; height: 10px;
+        background: var(--primary); border-radius: 1px;
+        transition: 0.2s;
+    }
+    .vol-slider::-webkit-slider-thumb:hover { background: var(--primary-bright); }
+    .vol-label { font-size: 9px; color: var(--text-dim); font-weight: 800; letter-spacing: 2px; }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+    /* Metadata */
+    .meta-display { margin-bottom: 60px; }
+    #artist { display: block; font-size: 13px; font-weight: 700; color: var(--primary-bright); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 15px; opacity: 0.9; }
+    #title { display: block; font-size: 28px; font-weight: 200; line-height: 1.2; letter-spacing: -0.5px; color: var(--text); }
+
+    /* Historial */
+    .history-wrap { text-align: left; border-top: 1px solid #121212; padding-top: 35px; }
+    .history-toggle { background: none; border: none; color: #333; font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; transition: 0.3s; }
+    .history-toggle:hover { color: var(--text-dim); }
+    
+    #history-content { max-height: 0; overflow: hidden; transition: max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+    .h-item { font-size: 13px; margin-bottom: 20px; border-left: 2px solid #2a0705; padding-left: 18px; transition: 0.3s; }
+    .h-item:hover { border-left-color: var(--primary); }
+    .h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 9px; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
+    .h-item span { color: #888; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
