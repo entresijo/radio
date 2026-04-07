@@ -7,73 +7,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #ff3b30; --bg: #000000; --text: #ffffff; --text-dim: #555; }
-
         * { -webkit-tap-highlight-color: transparent !important; outline: none !important; }
         *:focus { outline: none !important; box-shadow: none !important; }
-
-        body { 
-            margin: 0; background: var(--bg); color: var(--text); 
-            font-family: 'Inter', sans-serif; display: flex; 
-            justify-content: center; align-items: center; min-height: 100vh;
-            padding: 20px; overflow: hidden;
-        }
-
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; overflow: hidden; }
         .player-app { width: 100%; max-width: 420px; text-align: center; }
-
         .top-bar { margin-bottom: 30px; }
         #station-name { font-weight: 800; font-size: 15px; letter-spacing: 5px; color: var(--primary); display: block; margin-bottom: 8px; text-transform: uppercase; }
         #description { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 10px; }
         #clock { font-size: 12px; color: var(--text-dim); }
-
-        #status-badge { 
-            font-size: 12px; font-weight: 800; padding: 10px 25px; 
-            border-radius: 4px; display: inline-block; margin-bottom: 30px;
-            text-transform: uppercase; letter-spacing: 2px;
-            border: 1px solid #222; color: #444;
-        }
-        #status-badge.online { 
-            color: var(--primary); border-color: var(--primary); 
-            animation: glow-breath 2s infinite ease-in-out;
-        }
-        @keyframes glow-breath {
-            0%, 100% { opacity: 0.4; box-shadow: 0 0 5px rgba(255,39,48,0.1); }
-            50% { opacity: 1; box-shadow: 0 0 20px rgba(255,39,48,0.4); }
-        }
-
+        #status-badge { font-size: 12px; font-weight: 800; padding: 10px 25px; border-radius: 4px; display: inline-block; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 2px; border: 1px solid #222; color: #444; }
+        #status-badge.online { color: var(--primary); border-color: var(--primary); animation: glow-breath 2s infinite ease-in-out; }
+        @keyframes glow-breath { 0%, 100% { opacity: 0.4; box-shadow: 0 0 5px rgba(255,39,48,0.1); } 50% { opacity: 1; box-shadow: 0 0 20px rgba(255,39,48,0.4); } }
         .core-ui { display: flex; align-items: center; justify-content: center; gap: 40px; margin-bottom: 40px; }
         .play-outer { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
-
         #vu-canvas { position: absolute; top: -10px; left: -10px; z-index: 2; transform: rotate(-90deg); pointer-events: none; }
-
-        .play-btn {
-            position: relative; z-index: 10; width: 100%; height: 100%; 
-            border-radius: 50%; background: #111; border: 1px solid #222;
-            color: white; font-size: 45px; cursor: pointer; transition: 0.2s;
-            display: flex; align-items: center; justify-content: center;
-        }
-
-        /* VOLUMEN - Solución con Transform para evitar el Azul */
+        .play-btn { position: relative; z-index: 10; width: 100%; height: 100%; border-radius: 50%; background: #111; border: 1px solid #222; color: white; font-size: 45px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        
+        /* Slider Rojo con Transform */
         .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 40px; }
-        .vol-slider {
-            -webkit-appearance: none;
-            width: 140px; height: 6px; /* Invertimos dimensiones para rotar */
-            background: #1a1a1a; 
-            border-radius: 10px;
-            transform: rotate(-90deg); /* Lo volvemos vertical */
-            margin: 60px 0; /* Espacio para la rotación */
-            cursor: pointer;
-        }
-        .vol-slider::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 25px; height: 15px;
-            background: var(--primary); border-radius: 3px;
-        }
-
+        .vol-slider { -webkit-appearance: none; width: 140px; height: 6px; background: #1a1a1a; border-radius: 10px; transform: rotate(-90deg); margin: 60px 0; cursor: pointer; }
+        .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 25px; height: 15px; background: var(--primary); border-radius: 3px; }
         .vol-label { font-size: 11px; color: var(--text-dim); font-weight: 800; }
-
+        
         .meta-display { margin-bottom: 40px; }
         #artist { display: block; font-size: 14px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
         #title { display: block; font-size: 28px; font-weight: 200; line-height: 1.2; }
-
         .history-wrap { text-align: left; border-top: 1px solid #111; padding-top: 20px; }
         .history-toggle { background: none; border: none; color: var(--text-dim); font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
         #history-content { max-height: 0; overflow: hidden; transition: 0.4s ease; margin-top: 15px; }
@@ -88,27 +46,22 @@
         <span id="description">Cargando...</span>
         <div id="clock">--:-- — --/--/--</div>
     </div>
-
     <div id="status-badge">Detectando señal...</div>
-
     <div class="core-ui">
         <div class="play-outer">
             <canvas id="vu-canvas" width="160" height="160"></canvas>
             <button id="btn" class="play-btn" disabled>▶</button>
         </div>
-
         <div class="vol-fader">
             <span class="vol-label">VOL</span>
             <input type="range" id="volume" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
             <span class="vol-label">🔊</span>
         </div>
     </div>
-
     <div class="meta-display">
         <span id="artist">ESCUCHANDO AHORA</span>
         <span id="title">Conectando...</span>
     </div>
-
     <div class="history-wrap">
         <button class="history-toggle" onclick="toggleHistory()">Historial +</button>
         <div id="history-content"><div id="history-list"></div></div>
@@ -126,7 +79,7 @@
     const ctx = canvas.getContext("2d");
 
     let isPlaying = false;
-    let isUserPaused = true; // Control para evitar reconexión al pausar
+    let isUserPaused = true;
     let audioCtx, analyser, dataArray;
 
     function updateClock() {
@@ -158,17 +111,28 @@
                 btn.disabled = false;
                 document.getElementById("artist").innerText = (d.artist === "En vivo") ? "ESCUCHANDO AHORA" : d.artist;
                 document.getElementById("title").innerText = d.title;
-                if(d.history) {
-                    document.getElementById("history-list").innerHTML = d.history.slice(0,5).map(h => `
-                        <div class="h-item"><strong>${h.artist}</strong>${h.title}</div>
-                    `).join('');
-                }
             } else {
                 statusBadge.innerText = "OFFLINE";
                 statusBadge.classList.remove("online");
                 btn.disabled = true;
             }
         } catch(e) {}
+    }
+
+    // FUNCIÓN DE CARGA PURA
+    async function startStream() {
+        player.src = `${WORKER}/api/stream?t=${Date.now()}`;
+        try {
+            await player.play();
+            isPlaying = true;
+            btn.innerText = "⏸";
+            statusBadge.innerText = "● EN EL AIRE";
+            drawVu();
+        } catch(e) {
+            statusBadge.innerText = "Error de conexión";
+            isPlaying = false;
+            btn.innerText = "▶";
+        }
     }
 
     btn.onclick = async () => {
@@ -184,37 +148,37 @@
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
             }
             statusBadge.innerText = "CONECTANDO...";
-            player.src = `${WORKER}/api/stream?t=${Date.now()}`;
-            try {
-                await player.play();
-                isPlaying = true; btn.innerText = "⏸";
-                statusBadge.innerText = "● EN EL AIRE";
-                drawVu();
-            } catch(e) { statusBadge.innerText = "Error de conexión"; }
+            await startStream();
         } else {
             isUserPaused = true;
             isPlaying = false;
             player.pause(); 
-            player.src = ""; // Vaciar para no consumir datos
+            player.src = ""; 
             btn.innerText = "▶";
-            statusBadge.innerText = "● EN EL AIRE";
+        }
+    };
+
+    // RECONEXIÓN AUTOMÁTICA MEJORADA
+    // Si el buffer se queda vacío (waiting) o hay error, y el usuario NO puso pausa
+    player.onwaiting = () => {
+        if (!isUserPaused && isPlaying) {
+            statusBadge.innerText = "BUFFERING...";
+        }
+    };
+
+    player.onstalled = player.onerror = () => {
+        if (!isUserPaused) {
+            console.log("Señal perdida. Reintentando...");
+            statusBadge.innerText = "RECONECTANDO...";
+            startStream(); // Forzamos recarga del SRC
         }
     };
 
     document.getElementById("volume").oninput = (e) => { player.volume = e.target.value; };
-
     function toggleHistory() {
         const content = document.getElementById("history-content");
         content.style.maxHeight = content.style.maxHeight === "300px" ? "0" : "300px";
     }
-
-    // Reconexión INTELIGENTE
-    player.addEventListener('error', () => {
-        if(!isUserPaused) {
-            console.log("Error de stream, intentando reconectar...");
-            setTimeout(() => { if(!isUserPaused) btn.click(); btn.click(); }, 1000);
-        }
-    });
 
     setInterval(fetchMeta, 15000); fetchMeta();
 </script>
