@@ -3,156 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entresijo Pro Control</title>
+    <title>Entresijo Radio Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #ff3b30; --bg: #050505; --card: #121212; --text: #ffffff; --text-dim: #666; }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; justify-content: center; padding: 20px; }
+        :root { --primary: #ff3b30; --bg: #0a0a0a; --card: #161616; --text: #ffffff; --text-dim: #666; }
         
-        .main-grid { display: grid; grid-template-columns: 60px 350px 300px; gap: 20px; max-width: 800px; }
-        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } .vol-wrapper { display: none; } }
+        body { 
+            margin: 0; background: var(--bg); color: var(--text); 
+            font-family: 'Inter', sans-serif; display: flex; 
+            justify-content: center; align-items: center; min-height: 100vh;
+        }
 
-        .card { background: var(--card); border-radius: 24px; border: 1px solid #222; padding: 20px; overflow: hidden; }
+        /* Contenedor Principal */
+        .player-card {
+            background: var(--card); border-radius: 32px; padding: 30px;
+            border: 1px solid #222; display: flex; gap: 25px;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.6); position: relative;
+        }
+
+        /* Panel Izquierdo: Control e Info */
+        .main-controls { width: 280px; text-align: center; }
+
+        .status-badge {
+            font-size: 0.65rem; font-weight: 900; padding: 5px 12px;
+            border-radius: 6px; display: inline-block; margin-bottom: 20px;
+            text-transform: uppercase; letter-spacing: 1px; transition: 0.3s;
+        }
+        .st-offline { background: #222; color: #555; }
+        .st-connecting { background: #ca8a04; color: white; }
+        .st-online { background: var(--primary); color: white; box-shadow: 0 0 15px rgba(255,59,48,0.4); }
+
+        /* Vúmetro Real */
+        .vumetro {
+            display: flex; align-items: flex-end; justify-content: center;
+            gap: 3px; height: 40px; margin-bottom: 20px;
+        }
+        .bar { width: 4px; background: var(--primary); border-radius: 2px; height: 5%; transition: height 0.1s ease; }
+
+        /* Botón de Play con Spinner */
+        .btn-container { position: relative; width: 110px; height: 110px; margin: 0 auto 25px; }
+        .play-btn {
+            width: 100%; height: 100%; border-radius: 50%;
+            background: var(--primary); border: none; color: white;
+            font-size: 38px; cursor: pointer; position: relative; z-index: 5;
+            transition: transform 0.2s;
+        }
+        .play-btn:active { transform: scale(0.95); }
         
-        /* Visualizador de Ondas */
-        .visualizer { display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 30px; margin-bottom: 20px; }
-        .bar { width: 4px; background: var(--primary); border-radius: 2px; height: 10%; transition: height 0.1s; }
-        .playing .bar { animation: wave 1s ease-in-out infinite; }
-        @keyframes wave { 0%, 100% { height: 20%; } 50% { height: 100%; } }
+        .spinner {
+            position: absolute; top: -6px; left: -6px; right: -6px; bottom: -6px;
+            border: 3px solid transparent; border-top-color: var(--primary);
+            border-radius: 50%; display: none; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Status Badge */
-        .status-tag { font-size: 0.6rem; font-weight: 900; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; margin-bottom: 15px; display: inline-block; }
-        .on { background: var(--primary); color: white; }
-        .off { background: #333; color: #777; }
+        /* Texto */
+        #artist { color: var(--primary); font-weight: 800; font-size: 0.85rem; text-transform: uppercase; display: block; }
+        #title { font-size: 1.25rem; font-weight: 400; margin-top: 5px; display: block; line-height: 1.2; }
 
-        /* Botón de Play Gigante */
-        .play-btn { width: 100px; height: 100px; border-radius: 50%; background: var(--primary); border: none; color: white; font-size: 40px; cursor: pointer; margin-bottom: 20px; }
+        /* Panel Derecho: Volumen Integrado */
+        .vol-control {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 10px; padding-left: 15px;
+            border-left: 1px solid #222;
+        }
+        .vol-slider {
+            appearance: slider-vertical; width: 10px; height: 160px;
+            accent-color: var(--primary); cursor: pointer;
+        }
 
-        /* Chat y Historial */
-        .side-panel { display: flex; flex-direction: column; gap: 20px; }
-        .history-item { font-size: 0.75rem; padding: 8px 0; border-bottom: 1px solid #222; }
-        .history-item span { color: var(--primary); font-weight: bold; display: block; }
-
-        .chat-box { height: 200px; overflow-y: auto; font-size: 0.8rem; padding-right: 10px; margin-bottom: 10px; }
-        .chat-msg { margin-bottom: 8px; line-height: 1.4; }
-        .chat-msg b { color: var(--primary); }
-
-        .chat-input-group { display: flex; gap: 5px; }
-        input { background: #222; border: none; color: white; padding: 8px; border-radius: 8px; font-size: 0.8rem; }
-        
-        .btn-send { background: #444; border: none; color: white; border-radius: 8px; padding: 0 15px; cursor: pointer; }
-        .btn-ws { background: #25D366; color: white; text-decoration: none; display: block; text-align: center; padding: 10px; border-radius: 12px; font-weight: bold; margin-top: 10px; font-size: 0.9rem; }
-
-        /* Volumen Vertical */
-        .vol-wrapper { display: flex; flex-direction: column; align-items: center; background: var(--card); border-radius: 20px; padding: 20px 0; border: 1px solid #222; }
-        .vol-slider { appearance: slider-vertical; width: 8px; height: 200px; accent-color: var(--primary); }
+        .meta-footer { font-size: 0.7rem; color: var(--text-dim); margin-top: 20px; }
     </style>
 </head>
 <body>
 
-<div class="main-grid">
-    <div class="vol-wrapper">
+<div class="player-card">
+    <div class="main-controls">
+        <div id="status" class="status-badge st-offline">Sin señal</div>
+        
+        <div id="vumetro" class="vumetro"></div>
+
+        <div class="btn-container">
+            <div id="spinner" class="spinner"></div>
+            <button id="btn" class="play-btn">▶</button>
+        </div>
+
+        <div style="min-height: 80px;">
+            <span id="artist">ENTRESIJO</span>
+            <span id="title">Cargando...</span>
+        </div>
+
+        <div class="meta-footer">
+            <span id="listeners">👥 0 oyentes</span>
+        </div>
+    </div>
+
+    <div class="vol-control">
+        <span style="font-size: 10px; font-weight: 900;">MAX</span>
         <input type="range" id="volume" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
-    </div>
-
-    <div class="card" style="text-align: center;">
-        <div id="status" class="status-tag off">Sin señal</div>
-        
-        <div id="wave-container" class="visualizer">
-            </div>
-
-        <button id="btn" class="play-btn">▶</button>
-
-        <div style="min-height: 100px;">
-            <div id="artist" style="color: var(--primary); font-weight: 900; font-size: 0.8rem;">ENTRESIJO</div>
-            <div id="title" style="font-size: 1.4rem; margin-top: 5px;">Cargando...</div>
-        </div>
-
-        <div id="listeners" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 20px;">👥 0 oyentes</div>
-        
-        <a href="https://wa.me/TUNUMEROAQUI" target="_blank" class="btn-ws">💬 Mensaje a la Radio</a>
-    </div>
-
-    <div class="side-panel">
-        <div class="card" style="flex: 1;">
-            <h3 style="font-size: 0.9rem; margin-top: 0;">📜 Últimos temas</h3>
-            <div id="history-list"></div>
-        </div>
-
-        <div class="card" style="flex: 1;">
-            <h3 style="font-size: 0.9rem; margin-top: 0;">💬 Chat Comunitario</h3>
-            <div id="chat-box" class="chat-box">
-                <div class="chat-msg"><b>Radio:</b> ¡Bienvenidos a Entresijo!</div>
-            </div>
-            <div class="chat-input-group">
-                <input type="text" id="chat-name" placeholder="Tu nombre" style="width: 30%;">
-                <input type="text" id="chat-msg" placeholder="Mensaje..." style="width: 50%;">
-                <button onclick="sendMsg()" class="btn-send">➔</button>
-            </div>
-        </div>
+        <span style="font-size: 10px; font-weight: 900;">MIN</span>
     </div>
 </div>
 
-<audio id="player"></audio>
+<audio id="player" crossorigin="anonymous"></audio>
 
 <script>
     const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
+    const btn = document.getElementById("btn");
     const player = document.getElementById("player");
-    const wave = document.getElementById("wave-container");
+    const spinner = document.getElementById("spinner");
+    const statusTag = document.getElementById("status");
+    const vumetro = document.getElementById("vumetro");
 
-    // Generar barras del visualizador
-    for(let i=0; i<15; i++) {
-        let bar = document.createElement("div");
-        bar.className = "bar";
-        bar.style.animationDelay = `${i * 0.1}s`;
-        wave.appendChild(bar);
+    let isPlaying = false;
+    let audioCtx, analyser, dataArray, source;
+
+    // Crear barras del vúmetro
+    for(let i=0; i<12; i++) {
+        let b = document.createElement("div");
+        b.className = "bar";
+        vumetro.appendChild(b);
+    }
+
+    // Función para el movimiento real de las barras
+    function updateVisuals() {
+        if(!isPlaying) return;
+        requestAnimationFrame(updateVisuals);
+        analyser.getByteFrequencyData(dataArray);
+        const bars = document.querySelectorAll('.bar');
+        bars.forEach((bar, i) => {
+            let val = dataArray[i * 2] || 0;
+            bar.style.height = (val / 2.5) + 5 + "%";
+        });
     }
 
     async function fetchMeta() {
         try {
             const res = await fetch(`${WORKER}/api/radio-info`);
             const d = await res.json();
-            
-            document.getElementById("status").className = d.isLive ? "status-tag on" : "status-tag off";
-            document.getElementById("status").innerText = d.isLive ? "● En Vivo" : "Sin Señal";
-            document.getElementById("artist").innerText = d.artist || "Entresijo";
-            document.getElementById("title").innerText = d.title || "Enseguida volvemos";
-            document.getElementById("listeners").innerText = `👥 ${d.listeners || 0} oyentes`;
-
-            // Actualizar Historial (Si el worker lo envía)
-            if(d.history) {
-                document.getElementById("history-list").innerHTML = d.history.map(h => `
-                    <div class="history-item"><span>${h.artist}</span> ${h.title} <small style="opacity:0.5">${h.time}</small></div>
-                `).join('');
+            if(d.isLive) {
+                if(!isPlaying) {
+                    statusTag.className = "status-badge st-online";
+                    statusTag.innerText = "● EN EL AIRE";
+                }
+                document.getElementById("artist").innerText = d.artist || "En vivo";
+                document.getElementById("title").innerText = d.title || "Entresijo Radio";
+                document.getElementById("listeners").innerText = `👥 ${d.listeners} oyentes`;
+            } else {
+                statusTag.className = "status-badge st-offline";
+                statusTag.innerText = "Sin señal";
+                document.getElementById("artist").innerText = "Offline";
+                document.getElementById("title").innerText = "Enseguida volvemos";
             }
         } catch(e) {}
     }
 
-    // Lógica del Chat (Local para pruebas, podrías usar Firebase o Supabase para que sea real)
-    function sendMsg() {
-        const name = document.getElementById("chat-name").value || "Anónimo";
-        const msg = document.getElementById("chat-msg").value;
-        if(!msg) return;
+    btn.onclick = async () => {
+        if (!isPlaying) {
+            // Inicializar AudioContext en el primer clic (requisito navegador)
+            if(!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                source = audioCtx.createMediaElementSource(player);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                analyser.fftSize = 64;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+            }
 
-        const box = document.getElementById("chat-box");
-        box.innerHTML += `<div class="chat-msg"><b>${name}:</b> ${msg}</div>`;
-        box.scrollTop = box.scrollHeight;
-        document.getElementById("chat-msg").value = "";
-    }
+            btn.innerText = "";
+            spinner.style.display = "block";
+            statusTag.className = "status-badge st-connecting";
+            statusTag.innerText = "Conectando...";
 
-    document.getElementById("btn").onclick = async () => {
-        if (player.paused) {
-            player.src = `${WORKER}/api/stream`;
-            await player.play();
-            document.getElementById("btn").innerText = "⏸";
-            wave.classList.add("playing");
+            player.src = `${WORKER}/api/stream?t=${Date.now()}`;
+            try {
+                await player.play();
+                isPlaying = true;
+                btn.innerText = "⏸";
+                spinner.style.display = "none";
+                statusTag.className = "status-badge st-online";
+                statusTag.innerText = "● CONECTADO";
+                updateVisuals();
+            } catch(e) {
+                resetBtn();
+            }
         } else {
+            isPlaying = false;
             player.pause();
             player.src = "";
-            document.getElementById("btn").innerText = "▶";
-            wave.classList.remove("playing");
+            resetBtn();
+            fetchMeta();
         }
     };
+
+    function resetBtn() {
+        btn.innerText = "▶";
+        spinner.style.display = "none";
+    }
 
     document.getElementById("volume").oninput = (e) => player.volume = e.target.value;
 
