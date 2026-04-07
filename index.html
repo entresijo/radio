@@ -97,7 +97,8 @@ async function load() {
     setOnAir(true)
     track.innerText     = data.song
     listeners.innerText = data.listeners ? "👥 " + data.listeners : ""
-
+    document.getElementById("streamURL").innerText = streamURL
+    
   } catch(e) {
     console.error("metadata:", e)
     setOnAir(false)
