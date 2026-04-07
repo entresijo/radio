@@ -16,6 +16,7 @@ body {
   align-items:center;
   height:100vh;
 }
+
 .container { text-align:center; width:90%; max-width:400px; }
 
 .onair {
@@ -60,6 +61,7 @@ body {
 
 <script>
 
+const STREAM_URL = "https://uk15freenew.listen2myradio.com/live.mp3?typeportmount=ice_4243_stream_737103432"
 const META_URL = "/radio/metadata.json"
 
 const btn = document.getElementById("btn")
@@ -68,7 +70,6 @@ const onair = document.getElementById("onair")
 const track = document.getElementById("track")
 const listeners = document.getElementById("listeners")
 
-let streamURL = ""
 let playing = false
 
 function setOnAir(state){
@@ -89,16 +90,18 @@ async function load(){
 
     const age = (Date.now()/1000) - data.timestamp
 
-    if(age > 300 || !data.stream){
+    // 🔥 clave: si es viejo → offline
+    if(age > 300){
       setOnAir(false)
       return
     }
 
     setOnAir(true)
 
-    streamURL = data.stream
     track.innerText = data.song || "—"
-    listeners.innerText = data.listeners ? "👥 " + data.listeners : ""
+    listeners.innerText = data.listeners
+      ? "👥 " + data.listeners
+      : ""
 
   }catch(e){
     setOnAir(false)
@@ -106,15 +109,9 @@ async function load(){
 }
 
 btn.onclick = () => {
-
-  if(!streamURL){
-    alert("stream no disponible")
-    return
-  }
-
   if(!playing){
-    player.src = streamURL
-    player.play()
+    player.src = STREAM_URL
+    player.play().catch(()=>alert("error de stream"))
     btn.innerText = "⏸"
     playing = true
   }else{
