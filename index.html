@@ -7,30 +7,87 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #ff3b30; --bg: #000000; --text: #ffffff; --text-dim: #555; }
+
+        /* RESET ANTI-NARANJA */
         * { -webkit-tap-highlight-color: transparent !important; outline: none !important; }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; overflow: hidden; }
-        .player-app { width: 100%; max-width: 420px; text-align: center; }
-        .top-bar { margin-bottom: 30px; }
-        #station-name { font-weight: 800; font-size: 15px; letter-spacing: 5px; color: var(--primary); display: block; margin-bottom: 8px; text-transform: uppercase; }
-        #description { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 10px; }
-        #clock { font-size: 12px; color: var(--text-dim); }
-        #status-badge { font-size: 12px; font-weight: 800; padding: 10px 25px; border-radius: 4px; display: inline-block; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 2px; border: 1px solid #222; color: #444; }
-        #status-badge.online { color: var(--primary); border-color: var(--primary); animation: glow-breath 2s infinite ease-in-out; }
-        @keyframes glow-breath { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; box-shadow: 0 0 20px rgba(255,39,48,0.3); } }
-        .core-ui { display: flex; align-items: center; justify-content: center; gap: 40px; margin-bottom: 40px; }
+        *:focus { outline: none !important; box-shadow: none !important; }
+
+        body { 
+            margin: 0; background: var(--bg); color: var(--text); 
+            font-family: 'Inter', sans-serif; display: flex; 
+            justify-content: center; align-items: center; min-height: 100vh;
+            padding: 20px; overflow-x: hidden;
+        }
+
+        .player-app { width: 100%; max-width: 440px; text-align: center; }
+
+        /* Header */
+        .top-bar { margin-bottom: 50px; }
+        #station-name { font-weight: 800; font-size: 14px; letter-spacing: 5px; color: var(--primary); display: block; margin-bottom: 10px; text-transform: uppercase; }
+        #description { font-size: 12px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; display: block; }
+        #clock { font-size: 13px; color: var(--text-dim); letter-spacing: 1px; }
+
+        /* Badge de Estado */
+        #status-badge { 
+            font-size: 13px; font-weight: 800; padding: 10px 30px; 
+            border-radius: 6px; display: inline-block; margin-bottom: 45px;
+            text-transform: uppercase; letter-spacing: 3px;
+            border: 1px solid #222; color: #333; transition: all 0.5s ease;
+        }
+        #status-badge.online { color: var(--primary); border-color: var(--primary); animation: glow-breath 2.5s infinite ease-in-out; }
+
+        @keyframes glow-breath {
+            0%, 100% { box-shadow: 0 0 5px rgba(255, 59, 48, 0.1); opacity: 0.6; }
+            50% { box-shadow: 0 0 30px rgba(255, 59, 48, 0.4); opacity: 1; }
+        }
+
+        /* Core UI */
+        .core-ui { display: flex; align-items: center; justify-content: center; gap: 50px; margin-bottom: 60px; }
         .play-outer { position: relative; width: 140px; height: 140px; }
+
+        .loading-ring {
+            position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px;
+            border: 4px solid transparent; border-top-color: var(--primary);
+            border-radius: 50%; display: none; animation: spin 1s linear infinite; z-index: 1;
+        }
+
         #vu-canvas { position: absolute; top: -10px; left: -10px; z-index: 2; transform: rotate(-90deg); pointer-events: none; }
-        .play-btn { position: relative; z-index: 10; width: 100%; height: 100%; border-radius: 50%; background: #111; border: 1px solid #222; color: white; font-size: 45px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.3s; }
-        .play-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        
+
+        .play-btn {
+            position: relative; z-index: 10; width: 100%; height: 100%; 
+            border-radius: 50%; background: #0e0e0e; border: 1px solid #222;
+            color: white; font-size: 45px; cursor: pointer; transition: transform 0.2s ease;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .play-btn:active { transform: scale(0.92); }
+
+        /* VOLUMEN ROJO (Vertical con Transform para evitar el azul de sistema) */
         .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 40px; }
-        .vol-slider { -webkit-appearance: none; width: 140px; height: 6px; background: #1a1a1a; border-radius: 10px; transform: rotate(-90deg); margin: 60px 0; cursor: pointer; }
-        .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 25px; height: 15px; background: var(--primary); border-radius: 3px; }
-        .vol-label { font-size: 11px; color: var(--text-dim); font-weight: 800; }
-        
-        .meta-display { margin-bottom: 40px; }
-        #artist { display: block; font-size: 14px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
-        #title { display: block; font-size: 28px; font-weight: 200; line-height: 1.2; }
+        .vol-slider {
+            -webkit-appearance: none; width: 150px; height: 8px;
+            background: #1a1a1a; border-radius: 10px;
+            transform: rotate(-90deg); margin: 70px 0; cursor: pointer;
+        }
+        .vol-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 24px; height: 12px;
+            background: var(--primary); border-radius: 3px; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .vol-label { font-size: 12px; color: var(--text-dim); font-weight: 800; letter-spacing: 2px; }
+
+        /* Metadata */
+        .meta-display { margin-bottom: 60px; }
+        #artist { display: block; font-size: 15px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 15px; }
+        #title { display: block; font-size: 32px; font-weight: 200; line-height: 1.1; }
+
+        /* Historial Recuperado */
+        .history-wrap { text-align: left; border-top: 1px solid #111; padding-top: 25px; }
+        .history-toggle { background: none; border: none; color: var(--text-dim); font-size: 12px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        #history-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; margin-top: 20px; }
+        .h-item { font-size: 14px; margin-bottom: 18px; border-left: 3px solid #1a1a1a; padding-left: 15px; opacity: 0.8; }
+        .h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 11px; margin-bottom: 4px; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -38,24 +95,34 @@
 <div class="player-app">
     <div class="top-bar">
         <span id="station-name">ENTRESIJO RADIO</span>
-        <span id="description">Cargando...</span>
+        <span id="description">CARGANDO...</span>
         <div id="clock">--:-- — --/--/--</div>
     </div>
+
     <div id="status-badge">Detectando señal...</div>
+
     <div class="core-ui">
         <div class="play-outer">
+            <div id="loading-ring" class="loading-ring"></div>
             <canvas id="vu-canvas" width="160" height="160"></canvas>
             <button id="btn" class="play-btn" disabled>▶</button>
         </div>
+
         <div class="vol-fader">
             <span class="vol-label">VOL</span>
             <input type="range" id="volume" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
             <span class="vol-label">🔊</span>
         </div>
     </div>
+
     <div class="meta-display">
         <span id="artist">ESCUCHANDO AHORA</span>
         <span id="title">Conectando...</span>
+    </div>
+
+    <div class="history-wrap">
+        <button class="history-toggle" onclick="toggleHistory()">Historial +</button>
+        <div id="history-content"><div id="history-list"></div></div>
     </div>
 </div>
 
@@ -65,12 +132,13 @@
     const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
     const btn = document.getElementById("btn");
     const player = document.getElementById("player");
+    const ring = document.getElementById("loading-ring");
     const statusBadge = document.getElementById("status-badge");
     const canvas = document.getElementById("vu-canvas");
     const ctx = canvas.getContext("2d");
 
     let isPlaying = false;
-    let isConnecting = false; 
+    let isUserPaused = true;
     let audioCtx, analyser, dataArray;
 
     function updateClock() {
@@ -99,9 +167,14 @@
             if(d.isLive) {
                 statusBadge.innerText = "● EN EL AIRE";
                 statusBadge.classList.add("online");
-                if (!isConnecting) btn.disabled = false;
+                btn.disabled = false;
                 document.getElementById("artist").innerText = (d.artist === "En vivo") ? "ESCUCHANDO AHORA" : d.artist;
                 document.getElementById("title").innerText = d.title;
+                if(d.history) {
+                    document.getElementById("history-list").innerHTML = d.history.map(h => `
+                        <div class="h-item"><strong>${h.artist}</strong>${h.title}</div>
+                    `).join('');
+                }
             } else {
                 statusBadge.innerText = "OFFLINE";
                 statusBadge.classList.remove("online");
@@ -110,15 +183,29 @@
         } catch(e) {}
     }
 
-    async function togglePlay() {
-        if (isConnecting) return; // Evita el spam de clics
-        
-        if (!isPlaying) {
-            isConnecting = true;
-            btn.disabled = true;
-            btn.innerText = "...";
-            statusBadge.innerText = "CONECTANDO...";
+    async function startStream() {
+        player.src = `${WORKER}/api/stream?t=${Date.now()}`;
+        try {
+            await player.play();
+            isPlaying = true;
+            isUserPaused = false;
+            btn.innerText = "⏸";
+            ring.style.display = "none";
+            statusBadge.innerText = "● EN EL AIRE";
+            drawVu();
+        } catch(e) {
+            isPlaying = false;
+            btn.innerText = "▶";
+            ring.style.display = "none";
+        }
+    }
 
+    btn.onclick = async () => {
+        if (!isPlaying) {
+            btn.innerText = "";
+            ring.style.display = "block";
+            statusBadge.innerText = "CONECTANDO...";
+            
             if(!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioCtx.createAnalyser();
@@ -128,44 +215,29 @@
                 analyser.fftSize = 64;
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
             }
-
-            player.src = `${WORKER}/api/stream?t=${Date.now()}`;
-            try {
-                await player.play();
-                isPlaying = true;
-                btn.innerText = "⏸";
-                statusBadge.innerText = "● EN EL AIRE";
-                drawVu();
-            } catch(e) {
-                console.error("Error al reproducir", e);
-                statusBadge.innerText = "ERROR DE SEÑAL";
-                btn.innerText = "▶";
-            }
-            isConnecting = false;
-            btn.disabled = false;
+            await startStream();
         } else {
+            isUserPaused = true;
             isPlaying = false;
             player.pause();
             player.src = "";
             btn.innerText = "▶";
-        }
-    }
-
-    btn.onclick = togglePlay;
-
-    // RECONEXIÓN AUTOMÁTICA SILENCIOSA
-    player.onstalled = player.onerror = () => {
-        if (isPlaying && !isConnecting) {
-            console.log("Señal interrumpida. Intentando recuperar...");
-            player.src = `${WORKER}/api/stream?t=${Date.now()}`;
-            player.play().catch(() => {
-                // Si falla el autorentento, dejamos el botón en modo "Play"
-                isPlaying = false;
-                btn.innerText = "▶";
-                statusBadge.innerText = "CONEXIÓN PERDIDA";
-            });
+            ctx.clearRect(0,0,160,160);
         }
     };
+
+    // RECONEXIÓN AUTOMÁTICA AL CORTE (SOLO SI NO ES PAUSA)
+    player.onstalled = player.onerror = () => {
+        if (!isUserPaused && isPlaying) {
+            console.log("Señal caída. Reconectando...");
+            startStream();
+        }
+    };
+
+    function toggleHistory() {
+        const content = document.getElementById("history-content");
+        content.style.maxHeight = content.style.maxHeight === "500px" ? "0" : "500px";
+    }
 
     document.getElementById("volume").oninput = (e) => { player.volume = e.target.value; };
     setInterval(fetchMeta, 15000); fetchMeta();
