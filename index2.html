@@ -1,450 +1,7 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Entresijo Radio</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&display=swap" rel="stylesheet">
-<style>
-
-:root {
-  --red:     #e8362a;
-  --bg:      #080606;
-  --surface: #120d0d;
-  --text:    #ede8e5;
-  --dim:     #2a2020;
-  --dim2:    #5a4848;
-}
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  -webkit-tap-highlight-color: transparent;
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'DM Sans', sans-serif;
-  min-height: 100svh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 28px 20px;
-}
-
-/* ── APP CONTAINER ────────────────────────────── */
-.app {
-  width: 100%;
-  max-width: 360px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-/* ── HEADER ───────────────────────────────────── */
-.header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-#station-name {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 32px;
-  letter-spacing: 6px;
-  color: var(--red);
-  display: block;
-  line-height: 1;
-  margin-bottom: 6px;
-}
-
-#station-desc {
-  font-size: 10px;
-  color: var(--dim2);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  display: block;
-  margin-bottom: 9px;
-}
-
-#clock {
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  color: var(--dim2);
-  letter-spacing: 1.5px;
-}
-
-/* ── STATUS BADGE ─────────────────────────────── */
-#status-badge {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  padding: 8px 22px;
-  border-radius: 4px;
-  border: 1px solid var(--dim);
-  color: var(--dim2);
-  display: inline-block;
-  margin-bottom: 44px;
-  transition: color .4s ease, border-color .4s ease, box-shadow .4s ease, opacity .4s ease;
-  user-select: none;
-}
-
-#status-badge.online {
-  color: var(--red);
-  border-color: var(--red);
-  animation: badge-breathe 2.8s ease-in-out infinite;
-}
-
-#status-badge.connecting {
-  color: #d4882a;
-  border-color: #d4882a;
-}
-
-@keyframes badge-breathe {
-  0%,100% { box-shadow: 0 0 0px rgba(232,54,42,0); opacity: .65; }
-  50%      { box-shadow: 0 0 18px rgba(232,54,42,.4); opacity: 1; }
-}
-
-/* ── CORE CONTROLS ────────────────────────────── */
-.controls-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 38px;
-  margin-bottom: 48px;
-}
-
-/* ── PLAY BUTTON ──────────────────────────────── */
-.btn-wrap {
-  position: relative;
-  width: 150px;
-  height: 150px;
-  flex-shrink: 0;
-}
-
-/* CSS spinner – only during connecting */
-.loading-ring {
-  position: absolute;
-  inset: -12px;
-  border: 2px solid transparent;
-  border-top-color: var(--red);
-  border-right-color: rgba(232,54,42,.25);
-  border-radius: 50%;
-  display: none;
-  animation: spin .85s cubic-bezier(.5,0,.5,1) infinite;
-  pointer-events: none;
-  z-index: 3;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Canvas vumetro ring – always present */
-#vu-canvas {
-  position: absolute;
-  top: -15px;
-  left: -15px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.play-btn {
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 1px solid var(--dim);
-  color: var(--text);
-  font-size: 44px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background .3s ease, border-color .3s ease, transform .15s ease;
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-}
-
-.play-btn:focus,
-.play-btn:focus-visible { outline: none; box-shadow: none; }
-
-.play-btn:active { transform: scale(.93); }
-
-.play-btn.active {
-  border-color: rgba(232,54,42,.5);
-  background: #160e0e;
-}
-
-/* ── VOLUME FADER ─────────────────────────────── */
-.vol-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.vol-icon {
-  font-size: 17px;
-  opacity: .45;
-  line-height: 1;
-}
-
-/*
-  Reliable cross-browser vertical slider:
-  writing-mode:vertical-lr + direction:rtl
-  makes top = max, bottom = min (correct fader direction)
-*/
-.vol-slider {
-  writing-mode: vertical-lr;
-  direction: rtl;
-  -webkit-appearance: none;
-  appearance: none;
-  width: 6px;        /* track thickness */
-  height: 130px;     /* fader travel length */
-  background: linear-gradient(to bottom, var(--red) 0%, #280f0f 100%);
-  border-radius: 3px;
-  cursor: pointer;
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.vol-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 22px;
-  height: 9px;
-  background: var(--text);
-  border-radius: 2px;
-  cursor: pointer;
-  box-shadow: 0 1px 8px rgba(0,0,0,.7);
-}
-
-.vol-slider::-moz-range-thumb {
-  width: 22px;
-  height: 9px;
-  background: var(--text);
-  border-radius: 2px;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 1px 8px rgba(0,0,0,.7);
-}
-
-.vol-label {
-  font-family: 'DM Mono', monospace;
-  font-size: 9px;
-  color: var(--dim2);
-  letter-spacing: 2px;
-}
-
-/* ── METADATA ─────────────────────────────────── */
-.meta {
-  text-align: center;
-  width: 100%;
-  margin-bottom: 36px;
-  padding: 0 10px;
-  min-height: 85px;
-}
-
-#artist {
-  display: block;
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  color: var(--red);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-  opacity: .85;
-}
-
-#title {
-  display: block;
-  font-size: 28px;
-  font-weight: 300;
-  font-style: italic;
-  line-height: 1.2;
-  color: var(--text);
-}
-
-#listeners {
-  display: block;
-  margin-top: 11px;
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  color: var(--dim2);
-  letter-spacing: 1.5px;
-  min-height: 14px;
-}
-
-/* ── WHATSAPP ─────────────────────────────────── */
-.ws-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #2dc866;
-  text-decoration: none;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-  margin-bottom: 36px;
-  padding: 9px 18px;
-  border: 1px solid rgba(45,200,102,.2);
-  border-radius: 4px;
-  transition: border-color .2s ease, background .2s ease;
-}
-
-.ws-btn:hover,
-.ws-btn:active {
-  border-color: rgba(45,200,102,.45);
-  background: rgba(45,200,102,.05);
-}
-
-/* ── HISTORY ──────────────────────────────────── */
-.history {
-  width: 100%;
-  border-top: 1px solid var(--dim);
-  padding-top: 20px;
-}
-
-.history-toggle {
-  background: none;
-  border: none;
-  color: var(--dim2);
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  cursor: pointer;
-  padding: 0;
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: color .2s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.history-toggle:hover { color: var(--text); }
-
-.hist-arrow {
-  display: inline-block;
-  transition: transform .3s ease;
-}
-
-.hist-arrow.open { transform: rotate(180deg); }
-
-.history-list {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height .4s cubic-bezier(.4,0,.2,1);
-}
-
-.history-list.open {
-  max-height: 320px;
-  margin-top: 18px;
-}
-
-.h-item {
-  padding: 10px 0 10px 14px;
-  border-left: 2px solid var(--dim);
-  margin-bottom: 10px;
-}
-
-.h-item:last-child { margin-bottom: 0; }
-
-.h-artist {
-  display: block;
-  font-family: 'DM Mono', monospace;
-  font-size: 9px;
-  color: var(--red);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-bottom: 3px;
-  opacity: .8;
-}
-
-.h-title {
-  display: block;
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text);
-  opacity: .65;
-}
-
-.h-time {
-  font-family: 'DM Mono', monospace;
-  font-size: 9px;
-  color: var(--dim2);
-  margin-top: 3px;
-  display: block;
-}
-
-</style>
-</head>
-<body>
-
-<div class="app">
-
-  <div class="header">
-    <span id="station-name">ENTRESIJO</span>
-    <span id="station-desc">Radio Serrana</span>
-    <span id="clock">00:00 — 00/00/00</span>
-  </div>
-
-  <div id="status-badge">DETECTANDO SEÑAL</div>
-
-  <div class="controls-row">
-
-    <div class="btn-wrap">
-      <div class="loading-ring" id="loading-ring"></div>
-      <canvas id="vu-canvas" width="180" height="180"></canvas>
-      <button class="play-btn" id="btn" tabindex="-1" disabled>▶</button>
-    </div>
-
-    <div class="vol-wrap">
-      <span class="vol-icon">🔊</span>
-      <input type="range" class="vol-slider" id="volume"
-             min="0" max="1" step="0.01" value="0.8">
-      <span class="vol-label">VOL</span>
-    </div>
-
-  </div>
-
-  <div class="meta">
-    <span id="artist">ENTRESIJO RADIO</span>
-    <span id="title">Cargando señal...</span>
-    <span id="listeners"></span>
-  </div>
-
-  <!-- Replace TUNUMERO with the WhatsApp number, e.g. 5491112345678 -->
-  <a href="https://wa.me/TUNUMERO" target="_blank" rel="noopener" class="ws-btn" id="ws-btn">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-    </svg>
-    WhatsApp
-  </a>
-
-  <div class="history">
-    <button class="history-toggle" id="hist-toggle" tabindex="-1">
-      Historial
-      <span class="hist-arrow" id="hist-arrow">▾</span>
-    </button>
-    <div class="history-list" id="history-list"></div>
-  </div>
-
-</div>
-
-<audio id="player" crossorigin="anonymous" preload="none"></audio>
-
-<script>
 const WORKER = 'https://white-mud-e8b6.entresijoradio.workers.dev'
 const STREAM = WORKER + '/api/stream'
 const INFO   = WORKER + '/api/radio-info'
 
-// ── Elements ─────────────────────────────────────
 const btn       = document.getElementById('btn')
 const player    = document.getElementById('player')
 const ring      = document.getElementById('loading-ring')
@@ -456,21 +13,18 @@ const histBtn   = document.getElementById('hist-toggle')
 const histList  = document.getElementById('history-list')
 const histArrow = document.getElementById('hist-arrow')
 
-// ── State ─────────────────────────────────────────
 let isPlaying      = false
 let audioCtx       = null
 let analyser       = null
 let dataArray      = null
 let vuRunning      = false
 let reconnectTimer = null
-let reconnectCount = 0
 let stallTimer     = null
+let reconnectCount = 0
 let histOpen       = false
 
-// ── Canvas constants ──────────────────────────────
-// canvas 180x180, button 150x150, positioned at -15,-15
-const C = 90   // center
-const R = 82   // ring radius (82px leaves ~8px inside canvas edge)
+const C = 90
+const R = 82
 
 // ── Clock ─────────────────────────────────────────
 function tick() {
@@ -482,30 +36,23 @@ function tick() {
 setInterval(tick, 1000)
 tick()
 
-// ── VU Meter ring ─────────────────────────────────
+// ── VU ring ───────────────────────────────────────
 function drawRing(energy) {
   ctx.clearRect(0, 0, 180, 180)
-
-  // Always-present background track
   ctx.beginPath()
   ctx.arc(C, C, R, 0, Math.PI * 2)
   ctx.strokeStyle = '#1c1414'
   ctx.lineWidth = 1.5
   ctx.stroke()
-
   if (energy > 0) {
-    // Glow ring - full circle, opacity & width driven by energy
-    const alpha = .2 + energy * .8
-    const width = 1.5 + energy * 4
     ctx.beginPath()
     ctx.arc(C, C, R, 0, Math.PI * 2)
-    ctx.strokeStyle = 'rgba(232,54,42,' + alpha + ')'
-    ctx.lineWidth = width
+    ctx.strokeStyle = 'rgba(232,54,42,' + (.2 + energy * .8) + ')'
+    ctx.lineWidth = 1.5 + energy * 4
     ctx.stroke()
   }
 }
-
-drawRing(0)  // static ring on load
+drawRing(0)
 
 function vuLoop() {
   if (!vuRunning) return
@@ -516,7 +63,7 @@ function vuLoop() {
   drawRing(sum / dataArray.length / 255)
 }
 
-// ── Audio context (lazy init on first interaction) ─
+// ── Audio context ─────────────────────────────────
 function initAudio() {
   if (audioCtx) return
   audioCtx = new (window.AudioContext || window.webkitAudioContext)()
@@ -528,28 +75,45 @@ function initAudio() {
   analyser.connect(audioCtx.destination)
 }
 
-// ── Reconnect logic ───────────────────────────────
+// ── Timers ────────────────────────────────────────
 function clearTimers() {
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
   if (stallTimer)     { clearTimeout(stallTimer);     stallTimer     = null }
 }
 
+// ── Show signal lost ──────────────────────────────
+function showSignalLost() {
+  vuRunning = false
+  drawRing(0)
+  ring.style.display  = 'none'
+  btn.textContent     = '▶'
+  btn.classList.remove('active')
+  badge.className     = 'status-badge'
+  badge.textContent   = 'SIN SEÑAL'
+}
+
+// ── Reconnect ─────────────────────────────────────
 function scheduleReconnect() {
   if (!isPlaying) return
   clearTimers()
-  // Exponential backoff: 2s, 3.5s, 5s, 6.5s … max 15s
-  const delay = Math.min(2000 + reconnectCount * 1500, 15000)
+
+  showSignalLost()
+
+  const delay = Math.min(2000 + reconnectCount * 1500, 12000)
   reconnectCount++
-  badge.className   = 'status-badge connecting'
-  badge.textContent = 'RECONECTANDO...'
-  ring.style.display = 'block'
+
+  badge.textContent = 'RECONECTANDO ' + reconnectCount + '...'
+
   reconnectTimer = setTimeout(async () => {
+    if (!isPlaying) return
+    ring.style.display = 'block'
+    btn.textContent    = ''
     player.src = STREAM + '?t=' + Date.now()
     try {
       await player.play()
       reconnectCount = 0
-    } catch {
-      scheduleReconnect()
+    } catch (e) {
+      if (e.name !== 'AbortError') scheduleReconnect()
     }
   }, delay)
 }
@@ -557,6 +121,7 @@ function scheduleReconnect() {
 // ── Player events ─────────────────────────────────
 player.addEventListener('playing', () => {
   clearTimers()
+  reconnectCount     = 0
   ring.style.display = 'none'
   btn.textContent    = '⏸'
   btn.classList.add('active')
@@ -568,9 +133,11 @@ player.addEventListener('playing', () => {
 })
 
 player.addEventListener('waiting', () => {
+  // Give buffer 5s to recover before reconnecting
   clearTimeout(stallTimer)
-  // Give buffer 10s to recover before reconnecting
-  stallTimer = setTimeout(scheduleReconnect, 10000)
+  stallTimer = setTimeout(() => {
+    if (isPlaying) scheduleReconnect()
+  }, 5000)
 })
 
 player.addEventListener('error', () => {
@@ -579,41 +146,44 @@ player.addEventListener('error', () => {
 
 // ── Play / Pause ──────────────────────────────────
 btn.addEventListener('click', async () => {
-  btn.blur()  // ← removes focus = no orange outline
+  btn.blur()
 
   if (!isPlaying) {
     initAudio()
-    isPlaying      = true
-    reconnectCount = 0
-    btn.textContent     = ''
-    ring.style.display  = 'block'
-    badge.className     = 'status-badge connecting'
-    badge.textContent   = 'CONECTANDO...'
+    isPlaying          = true
+    reconnectCount     = 0
+    btn.textContent    = ''
+    ring.style.display = 'block'
+    badge.className    = 'status-badge connecting'
+    badge.textContent  = 'CONECTANDO...'
 
     player.src = STREAM + '?t=' + Date.now()
     try {
       await player.play()
     } catch (e) {
       if (e.name !== 'AbortError') {
-        isPlaying           = false
-        btn.textContent     = '▶'
-        ring.style.display  = 'none'
-        badge.textContent   = 'ERROR DE CONEXIÓN'
-        badge.className     = 'status-badge'
+        isPlaying          = false
+        btn.textContent    = '▶'
+        ring.style.display = 'none'
+        badge.className    = 'status-badge'
+        badge.textContent  = 'ERROR DE CONEXIÓN'
       }
     }
 
   } else {
+    // Manual pause
     isPlaying = false
     vuRunning = false
     clearTimers()
+    reconnectCount     = 0
     player.pause()
-    player.src          = ''
-    btn.textContent     = '▶'
+    player.src         = ''
+    btn.textContent    = '▶'
     btn.classList.remove('active')
-    ring.style.display  = 'none'
+    ring.style.display = 'none'
     drawRing(0)
-    fetchMeta()  // refresh badge to show transmission status
+    // Refresh badge to show actual transmission state
+    fetchMeta()
   }
 })
 
@@ -636,46 +206,45 @@ async function fetchMeta() {
     const res  = await fetch(INFO, { cache: 'no-store' })
     const data = await res.json()
 
-    // Parse station name: "Entresijo -Radio Serrana-" → name + subtitle
-    const rawName = data.radioName || 'ENTRESIJO RADIO'
+    // Station name / description
+    const rawName  = data.radioName || 'ENTRESIJO RADIO'
     const dashMatch = rawName.match(/^(.+?)\s*-([^-]+)-\s*$/)
     if (dashMatch) {
-      document.getElementById('station-name').textContent =
-        dashMatch[1].trim().toUpperCase()
-      document.getElementById('station-desc').textContent =
-        dashMatch[2].trim()
+      document.getElementById('station-name').textContent = dashMatch[1].trim().toUpperCase()
+      document.getElementById('station-desc').textContent = dashMatch[2].trim()
     } else {
-      document.getElementById('station-name').textContent =
-        rawName.toUpperCase()
-      if (data.description) {
+      document.getElementById('station-name').textContent = rawName.toUpperCase()
+      if (data.description)
         document.getElementById('station-desc').textContent = data.description
-      }
     }
 
     // Listeners
     document.getElementById('listeners').textContent =
-      (typeof data.listeners === 'number' && !isNaN(data.listeners))
+      (typeof data.listeners === 'number' && data.listeners > 0)
         ? data.listeners + ' oyentes en vivo'
         : ''
 
     if (data.isLive) {
-      // Only update badge if not in a mid-connection state
-      if (!isPlaying) {
+      btn.disabled = false
+
+      // If player is idle (not mid-connect or playing) show on-air
+      if (!isPlaying && !reconnectCount) {
         badge.className   = 'status-badge online'
         badge.textContent = '● EN EL AIRE'
       }
-      btn.disabled = false
 
-      // Artist: swap generic "En vivo" for friendlier label
-      const raw = (data.artist || '').trim()
+      // If we think we're playing but fetchMeta says stream is live
+      // and we're stuck in reconnect, give it one more push
+      if (isPlaying && reconnectCount > 0 && !reconnectTimer) {
+        scheduleReconnect()
+      }
+
+      const raw     = (data.artist || '').trim()
       const generic = raw === '' || raw.toLowerCase() === 'en vivo'
       document.getElementById('artist').textContent =
         generic ? 'ESCUCHANDO AHORA' : raw.toUpperCase()
+      document.getElementById('title').textContent = data.title || 'Transmisión en vivo'
 
-      document.getElementById('title').textContent =
-        data.title || 'Transmisión en vivo'
-
-      // History
       if (Array.isArray(data.history) && data.history.length) {
         histList.innerHTML = data.history.map(h => {
           const ga = !h.artist || h.artist.toLowerCase() === 'en vivo'
@@ -688,11 +257,19 @@ async function fetchMeta() {
       }
 
     } else {
-      // Transmission offline
-      if (!isPlaying) {
+      // Stream is truly offline on the server side
+      btn.disabled = true
+
+      if (isPlaying) {
+        // Was playing, server went offline → stop and show signal lost
+        isPlaying = false
+        clearTimers()
+        player.pause()
+        player.src = ''
+        showSignalLost()
+      } else if (!reconnectCount) {
         badge.className   = 'status-badge'
         badge.textContent = 'FUERA DEL AIRE'
-        btn.disabled      = true
         document.getElementById('artist').textContent = 'SIN SEÑAL'
         document.getElementById('title').textContent  = 'Enseguida volvemos'
       }
@@ -705,6 +282,3 @@ async function fetchMeta() {
 
 setInterval(fetchMeta, 15000)
 fetchMeta()
-</script>
-</body>
-</html>
