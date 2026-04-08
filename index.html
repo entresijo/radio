@@ -168,224 +168,134 @@
 <audio id="player" crossorigin="anonymous"></audio>
 
 <script>
-const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
-const btn = document.getElementById("btn");
-const ring = document.getElementById("loading-ring");
-const statusBadge = document.getElementById("status-badge");
-const canvas = document.getElementById("vu-canvas");
-const ctx = canvas.getContext("2d");
+    const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
+    const btn = document.getElementById("btn");
+    const player = document.getElementById("player");
+    const ring = document.getElementById("loading-ring");
+    const statusBadge = document.getElementById("status-badge");
+    const canvas = document.getElementById("vu-canvas");
+    const ctx = canvas.getContext("2d");
 
-let player = document.getElementById("player");
-let isPlaying = false;
-let isUserPaused = true;
-let audioCtx, analyser, dataArray;
-let silenceTimer = null; 
-let streamStartTime = 0; // Referencia para la ventana de gracia
+    let isPlaying = false;
+    let isUserPaused = true;
+    let audioCtx, analyser, dataArray;
 
-// 1. SOLUCIÓN AL RECUADRO NARANJA (Blur forzado)
-function clearFocus() {
-    btn.blur();
-    if (window.getSelection) { window.getSelection().removeAllRanges(); }
-}
+    // Reloj Dual
+    function updateClock() {
+        const now = new Date();
+        const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const date = now.toLocaleDateString([], {day: '2-digit', month: '2-digit', year: '2-digit'});
+        document.getElementById("clock").innerHTML = `${time}<br>${date}`;
+    }
+    setInterval(updateClock, 1000); updateClock();
 
-// 2. RECONSTRUCCIÓN NUCLEAR DEL REPRODUCTOR
-function rebuildPlayer() {
-    if (player) {
+    // Vúmetro Circular (Precisión 156px)
+    function drawVu() {
+        if(!isPlaying) { ctx.clearRect(0,0,156,156); return; }
+        requestAnimationFrame(drawVu);
+        analyser.getByteFrequencyData(dataArray);
+        
+        ctx.clearRect(0,0,156,156);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#80130f";
+        
+        const avg = dataArray.reduce((a,b) => a+b) / dataArray.length;
+        const limit = (avg / 255) * Math.PI * 2;
+
+        ctx.beginPath();
+        ctx.arc(78, 78, 74, 0, limit);
+        ctx.stroke();
+    }
+
+    async function fetchMeta() {
+        try {
+            const res = await fetch(`${WORKER}/api/radio-info`);
+            const d = await res.json();
+            
+            if(d.isLive) {
+                statusBadge.classList.add("st-on");
+                if(!isPlaying) {
+                    statusBadge.innerText = isUserPaused ? "● PAUSA" : "● EN EL AIRE";
+                }
+                btn.disabled = false;
+                document.getElementById("artist").innerText = d.artist || "ENTRESIJO";
+                document.getElementById("title").innerText = d.title || "Radio Serrana";
+                document.getElementById("listeners").innerText = `${d.listeners || 0} OYENTES`;
+                
+                if(d.history) {
+                    document.getElementById("history-list").innerHTML = d.history.slice(0,3).map(h => `
+                        <div class="h-item"><strong>${h.time || '--:--'} | ${h.artist}</strong> ${h.title}</div>
+                    `).join('');
+                }
+            } else {
+                statusBadge.innerText = "OFFLINE";
+                statusBadge.classList.remove("st-on");
+                btn.disabled = true;
+                document.getElementById("title").innerText = "Transmisión Pausada";
+            }
+        } catch(e) { statusBadge.innerText = "Error de Señal"; }
+    }
+
+    async function startStream() {
+        if (isUserPaused) return;
+        ring.style.display = "block";
+        btn.innerText = "";
+        statusBadge.innerText = "CONECTANDO...";
+        
+        player.src = `${WORKER}/api/stream?t=${Date.now()}`;
+        try {
+            await player.play();
+            isPlaying = true;
+            btn.innerText = "⏸";
+            ring.style.display = "none";
+            statusBadge.innerText = "● EN EL AIRE";
+            drawVu();
+        } catch(e) {
+            statusBadge.innerText = "Error de conexión";
+            resetPlayer();
+        }
+    }
+
+    function resetPlayer() {
+        isPlaying = false;
         player.pause();
         player.src = "";
-        player.load();
-        player.remove();
+        player.load(); // Reseteo total del buffer
+        btn.innerText = "▶";
+        ring.style.display = "none";
+        ctx.clearRect(0,0,156,156);
     }
-    const newPlayer = document.createElement('audio');
-    newPlayer.id = "player";
-    newPlayer.crossOrigin = "anonymous";
-    document.body.appendChild(newPlayer);
-    player = newPlayer;
-    
-    // Re-vincular eventos de estabilidad
-    player.onwaiting = () => { if(!isUserPaused) statusBadge.innerText = "BUFFERING..."; };
+
+    btn.onclick = async () => {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            const source = audioCtx.createMediaElementSource(player);
+            source.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            analyser.fftSize = 64;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+        }
+
+        if (player.paused) {
+            isUserPaused = false;
+            await startStream();
+        } else {
+            isUserPaused = true;
+            statusBadge.innerText = "● PAUSA";
+            resetPlayer();
+        }
+    };
+
+    // Autocuración ante micro-cortes
+    player.onwaiting = () => { if(!isUserPaused) statusBadge.innerText = "RECONECTANDO..."; };
     player.onstalled = () => { if(!isUserPaused) startStream(); };
     player.onerror = () => { if(!isUserPaused) setTimeout(startStream, 3000); };
-}
 
-// 3. MEDIA SESSION API (Prioridad en segundo plano)
-function updateMediaSession() {
-    if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: 'Radio Serrana',
-            artist: 'ENTRESIJO RADIO',
-            album: 'En Vivo',
-            artwork: [
-                { src: 'https://placehold.co/512x512/0c0c0c/80130f?text=ENTRESIJO', sizes: '512x512', type: 'image/png' }
-            ]
-        });
-        navigator.mediaSession.setActionHandler('play', () => { isUserPaused = false; startStream(); });
-        navigator.mediaSession.setActionHandler('pause', () => { isUserPaused = true; resetPlayer(); });
-    }
-}
-
-// 4. DETECCIÓN DE RED (Sistema Operativo)
-window.addEventListener('online', () => {
-    if (!isUserPaused) {
-        statusBadge.innerText = "RED DETECTADA...";
-        setTimeout(startStream, 1500);
-    }
-});
-window.addEventListener('offline', () => {
-    statusBadge.innerText = "SIN CONEXIÓN";
-});
-
-// 5. MOTOR DE REPRODUCCIÓN REFORZADO
-async function startStream() {
-    if (isUserPaused) return;
+    document.getElementById("volume").oninput = (e) => player.volume = e.target.value;
     
-    rebuildPlayer(); 
-    ring.style.display = "block";
-    btn.innerText = "";
-    statusBadge.innerText = "CONECTANDO...";
-    
-    player.src = `${WORKER}/api/stream?t=${Date.now()}`;
-    
-    try {
-        await player.play();
-        
-        // Desbloqueo de AudioContext (crítico para el Vúmetro en móviles)
-        if (audioCtx && audioCtx.state === 'suspended') {
-            await audioCtx.resume();
-        }
-        
-        isPlaying = true;
-        streamStartTime = Date.now(); // Inicia reloj de gracia
-        btn.innerText = "⏸";
-        ring.style.display = "none";
-        statusBadge.innerText = "● EN EL AIRE";
-        updateMediaSession();
-        drawVu();
-    } catch(e) {
-        console.error("Fallo de reproducción:", e);
-        resetPlayer();
-        statusBadge.innerText = "REINTENTANDO...";
-        // Reintento espaciado para evitar bucles infinitos de error
-        setTimeout(() => { if(!isUserPaused) startStream(); }, 5000);
-    }
-}
-
-function resetPlayer() {
-    isPlaying = false;
-    if (player) {
-        player.pause();
-        player.src = "";
-        player.load();
-    }
-    btn.innerText = "▶";
-    ring.style.display = "none";
-    clearTimeout(silenceTimer);
-    silenceTimer = null;
-    ctx.clearRect(0,0,156,156);
-}
-
-// 6. LÓGICA DEL BOTÓN
-btn.onclick = async () => {
-    clearFocus();
-    
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        const source = audioCtx.createMediaElementSource(player);
-        source.connect(analyser);
-        analyser.connect(audioCtx.destination);
-        analyser.fftSize = 64;
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
-    }
-
-    if (player.paused) {
-        isUserPaused = false;
-        await startStream();
-    } else {
-        isUserPaused = true;
-        statusBadge.innerText = "● PAUSA";
-        resetPlayer();
-    }
-};
-
-// 7. VÚMETRO + WATCHDOG (Con ventana de gracia)
-function drawVu() {
-    if(!isPlaying || isUserPaused) { 
-        ctx.clearRect(0,0,156,156); 
-        clearTimeout(silenceTimer);
-        silenceTimer = null;
-        return; 
-    }
-    
-    requestAnimationFrame(drawVu);
-    analyser.getByteFrequencyData(dataArray);
-    
-    const avg = dataArray.reduce((a,b) => a+b) / dataArray.length;
-
-    // --- WATCHDOG REFORZADO ---
-    // Solo evalúa el silencio si ya pasaron 10 segundos de carga (Ventana de Gracia)
-    const gracePeriodPassed = (Date.now() - streamStartTime) > 10000;
-
-    if (gracePeriodPassed && avg < 0.2) { 
-        if (!silenceTimer) {
-            silenceTimer = setTimeout(() => {
-                if(!isUserPaused) {
-                    console.log("Watchdog detectó stream muerto tras periodo de gracia.");
-                    statusBadge.innerText = "RECONECTANDO SEÑAL...";
-                    startStream(); 
-                }
-            }, 10000); // 10 segundos extra de margen antes de reiniciar
-        }
-    } else {
-        clearTimeout(silenceTimer);
-        silenceTimer = null;
-    }
-
-    ctx.clearRect(0,0,156,156);
-    ctx.lineWidth = 4; ctx.strokeStyle = "#80130f";
-    const limit = (avg / 255) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.arc(78, 78, 74, 0, limit);
-    ctx.stroke();
-}
-
-// 8. KEEP-ALIVE AL WORKER
-setInterval(() => {
-    if (isPlaying && !isUserPaused) {
-        fetch(`${WORKER}/api/radio-info`).catch(() => {});
-    }
-}, 12000);
-
-// Metadata y Reloj
-function updateClock() {
-    const now = new Date();
-    const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    const date = now.toLocaleDateString([], {day: '2-digit', month: '2-digit', year: '2-digit'});
-    document.getElementById("clock").innerHTML = `${time}<br>${date}`;
-}
-setInterval(updateClock, 1000); updateClock();
-
-async function fetchMeta() {
-    try {
-        const res = await fetch(`${WORKER}/api/radio-info`);
-        const d = await res.json();
-        if(d.isLive) {
-            statusBadge.classList.add("st-on");
-            btn.disabled = false;
-            document.getElementById("artist").innerText = d.artist || "ENTRESIJO";
-            document.getElementById("title").innerText = d.title || "Radio Serrana";
-            document.getElementById("listeners").innerText = `${d.listeners || 0} OYENTES`;
-            if(d.history) {
-                document.getElementById("history-list").innerHTML = d.history.slice(0,3).map(h => `
-                    <div class="h-item"><strong>${h.time || '--:--'} | ${h.artist}</strong> ${h.title}</div>
-                `).join('');
-            }
-        }
-    } catch(e) { console.warn("Fallo fetch metadata"); }
-}
-
-setInterval(fetchMeta, 15000); fetchMeta();
-document.getElementById("volume").oninput = (e) => { if(player) player.volume = e.target.value; };
+    setInterval(fetchMeta, 15000);
+    fetchMeta();
 </script>
 
 </body>
