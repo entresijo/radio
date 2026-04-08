@@ -12,7 +12,7 @@
             --card: #0c0c0c;
             --text: #ffffff;
             --text-dim: #555;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body {
@@ -23,27 +23,33 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Contenedor Estilo App Premium */
+        /* Contenedor Blindado */
         .player-app {
-            background: var(--card); width: 100%; max-width: 360px;
+            background: var(--card); width: 100%; max-width: 380px;
             border-radius: 40px; border: 1px solid #1a1a1a;
-            padding: 35px; box-shadow: 0 40px 80px rgba(0,0,0,0.8);
+            padding: 40px; box-shadow: 0 40px 80px rgba(0,0,0,0.7);
             display: flex; flex-direction: column; align-items: center;
-            position: relative; overflow: hidden;
+            text-align: center;
         }
 
-        /* Header */
-        .header { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
-        #station-name { font-weight: 900; font-size: 11px; letter-spacing: 3px; color: var(--primary); text-transform: uppercase; }
-        .clock { font-size: 10px; color: var(--text-dim); text-align: right; font-weight: 400; line-height: 1.4; letter-spacing: 1px; }
+        /* Header Centrado */
+        .header { width: 100%; margin-bottom: 35px; }
+        #station-name { 
+            font-weight: 900; font-size: 14px; letter-spacing: 4px; 
+            color: var(--primary); text-transform: uppercase; display: block;
+            margin-bottom: 10px;
+        }
+        .clock { 
+            font-size: 11px; color: var(--text-dim); 
+            font-weight: 400; line-height: 1.5; letter-spacing: 1px;
+        }
 
-        /* Badge de Estado */
+        /* Status Badge */
         #status-badge {
-            font-size: 9px; font-weight: 900; padding: 6px 14px;
-            border-radius: 4px; display: inline-block; margin-bottom: 35px;
+            font-size: 10px; font-weight: 900; padding: 6px 16px;
+            border-radius: 4px; display: inline-block; margin-bottom: 40px;
             text-transform: uppercase; letter-spacing: 2px;
-            border: 1px solid #222; color: var(--text-dim);
-            transition: var(--transition);
+            border: 1px solid #222; color: #444; transition: all 0.4s var(--ease);
         }
         .st-on { 
             color: var(--primary) !important; border-color: var(--primary) !important;
@@ -51,12 +57,15 @@
         }
         @keyframes glow-breath { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
-        /* Bloque Central de Control */
-        .core-ui { display: flex; align-items: center; justify-content: center; gap: 35px; margin-bottom: 45px; width: 100%; }
+        /* Core UI: Play + Volumen */
+        .core-ui { 
+            display: flex; align-items: center; justify-content: center; 
+            gap: 40px; margin-bottom: 50px; width: 100%;
+        }
 
-        .play-outer { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+        .play-outer { position: relative; width: 140px; height: 140px; }
         
-        /* Spinner Perimetral */
+        /* Spinner e Interfaz de Carga */
         .loading-ring {
             position: absolute; top: -8px; left: -8px; right: -8px; bottom: -8px;
             border: 3px solid transparent; border-top-color: var(--primary);
@@ -64,47 +73,55 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Vúmetro Circular */
-        #vu-canvas { position: absolute; top: -8px; left: -8px; z-index: 2; transform: rotate(-90deg); pointer-events: none; }
+        #vu-canvas { position: absolute; top: -8px; left: -8px; z-index: 2; transform: rotate(-90deg); }
 
         .play-btn {
             position: relative; z-index: 10; width: 100%; height: 100%;
             border-radius: 50%; background: #111; border: 1px solid #222;
-            color: white; font-size: 38px; cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            color: white; font-size: 40px; cursor: pointer;
+            transition: all 0.2s var(--ease);
             display: flex; align-items: center; justify-content: center;
             -webkit-tap-highlight-color: transparent;
         }
-        /* Efecto Resorte y Hundimiento */
+        /* Efecto Resorte */
         .play-btn:active { transform: scale(0.92); background: #151515; }
         .play-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--primary); }
+        .play-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         /* Volumen Vertical */
-        .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .vol-fader { display: flex; flex-direction: column; align-items: center; gap: 12px; }
         .vol-slider {
             appearance: slider-vertical; -webkit-appearance: slider-vertical;
-            width: 4px; height: 110px; background: #1a1a1a;
+            width: 5px; height: 120px; background: #1a1a1a;
             outline: none; border-radius: 10px; accent-color: var(--primary);
-            cursor: pointer;
         }
         .vol-label { font-size: 9px; color: var(--text-dim); font-weight: 900; }
 
-        /* Metadata Now Playing */
-        .meta-display { text-align: center; width: 100%; margin-bottom: 40px; min-height: 85px; }
-        #artist { display: block; font-size: 13px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
-        #title { display: block; font-size: 28px; font-weight: 200; line-height: 1.2; color: #eee; }
+        /* Metadata */
+        .meta-display { margin-bottom: 45px; min-height: 90px; width: 100%; }
+        #artist { 
+            display: block; font-size: 14px; font-weight: 700; 
+            color: var(--primary); text-transform: uppercase; 
+            letter-spacing: 2px; margin-bottom: 12px; 
+        }
+        #title { 
+            display: block; font-size: 30px; font-weight: 200; 
+            line-height: 1.2; color: #eee; 
+        }
 
-        /* Footer con Utilidades */
-        .footer { width: 100%; display: flex; justify-content: space-between; border-top: 1px solid #151515; padding-top: 25px; align-items: center; }
-        .ws-btn { color: #25d366; text-decoration: none; font-size: 10px; font-weight: 900; letter-spacing: 1px; transition: opacity 0.3s; }
-        .ws-btn:hover { opacity: 0.7; }
+        /* Footer */
+        .footer { 
+            width: 100%; display: flex; justify-content: space-between; 
+            border-top: 1px solid #151515; padding-top: 30px; align-items: center; 
+        }
+        .ws-btn { color: #25d366; text-decoration: none; font-size: 11px; font-weight: 900; letter-spacing: 1px; }
         #listeners { font-size: 10px; color: var(--text-dim); font-weight: 700; }
 
         /* Historial */
-        .history { width: 100%; margin-top: 25px; text-align: left; }
-        .h-title { font-size: 9px; color: var(--text-dim); font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
-        .h-item { font-size: 12px; margin-bottom: 12px; border-left: 2px solid #1a1a1a; padding-left: 12px; opacity: 0.6; }
-        .h-item strong { color: var(--primary); font-weight: 400; display: block; font-size: 10px; margin-bottom: 2px; }
+        .history { width: 100%; margin-top: 30px; text-align: left; }
+        .h-title { font-size: 9px; color: var(--text-dim); font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; }
+        .h-item { font-size: 12px; margin-bottom: 15px; border-left: 2px solid #1a1a1a; padding-left: 15px; opacity: 0.7; }
+        .h-item strong { color: var(--primary); font-weight: 400; display: block; font-size: 10px; margin-bottom: 3px; }
 
     </style>
 </head>
@@ -112,9 +129,7 @@
 
 <div class="player-app">
     <div class="header">
-        <div class="station-info">
-            <span id="station-name">Entresijo Radio</span>
-        </div>
+        <span id="station-name">ENTRESIJO RADIO</span>
         <div class="clock" id="clock">--:--<br>--/--/--</div>
     </div>
 
@@ -130,7 +145,7 @@
         <div class="vol-fader">
             <span class="vol-label">MAX</span>
             <input type="range" id="volume" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
-            <span class="vol-label">VOL</span>
+            <span class="vol-label">MIN</span>
         </div>
     </div>
 
@@ -165,7 +180,7 @@
     let isUserPaused = true;
     let audioCtx, analyser, dataArray;
 
-    // Reloj
+    // Reloj Dual
     function updateClock() {
         const now = new Date();
         const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -174,7 +189,7 @@
     }
     setInterval(updateClock, 1000); updateClock();
 
-    // Vúmetro Circular
+    // Vúmetro Circular (Precisión 156px)
     function drawVu() {
         if(!isPlaying) { ctx.clearRect(0,0,156,156); return; }
         requestAnimationFrame(drawVu);
@@ -199,7 +214,9 @@
             
             if(d.isLive) {
                 statusBadge.classList.add("st-on");
-                statusBadge.innerText = isPlaying ? "● EN EL AIRE" : (isUserPaused ? "● PAUSA" : "● EN EL AIRE");
+                if(!isPlaying) {
+                    statusBadge.innerText = isUserPaused ? "● PAUSA" : "● EN EL AIRE";
+                }
                 btn.disabled = false;
                 document.getElementById("artist").innerText = d.artist || "ENTRESIJO";
                 document.getElementById("title").innerText = d.title || "Radio Serrana";
@@ -207,7 +224,7 @@
                 
                 if(d.history) {
                     document.getElementById("history-list").innerHTML = d.history.slice(0,3).map(h => `
-                        <div class="h-item"><strong>${h.artist}</strong> ${h.title}</div>
+                        <div class="h-item"><strong>${h.time || '--:--'} | ${h.artist}</strong> ${h.title}</div>
                     `).join('');
                 }
             } else {
@@ -234,6 +251,7 @@
             statusBadge.innerText = "● EN EL AIRE";
             drawVu();
         } catch(e) {
+            statusBadge.innerText = "Error de conexión";
             resetPlayer();
         }
     }
@@ -242,7 +260,7 @@
         isPlaying = false;
         player.pause();
         player.src = "";
-        player.load();
+        player.load(); // Reseteo total del buffer
         btn.innerText = "▶";
         ring.style.display = "none";
         ctx.clearRect(0,0,156,156);
@@ -269,9 +287,10 @@
         }
     };
 
-    // Auto-reconexión ante errores
+    // Autocuración ante micro-cortes
+    player.onwaiting = () => { if(!isUserPaused) statusBadge.innerText = "RECONECTANDO..."; };
+    player.onstalled = () => { if(!isUserPaused) startStream(); };
     player.onerror = () => { if(!isUserPaused) setTimeout(startStream, 3000); };
-    player.onstalled = () => { if(!isUserPaused) setTimeout(startStream, 3000); };
 
     document.getElementById("volume").oninput = (e) => player.volume = e.target.value;
     
