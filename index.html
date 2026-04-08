@@ -168,6 +168,7 @@
 <audio id="player" crossorigin="anonymous"></audio>
 
 <script>
+<script>
 const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
 const btn = document.getElementById("btn");
 const ring = document.getElementById("loading-ring");
@@ -179,7 +180,8 @@ let player = document.getElementById("player");
 let isPlaying = false;
 let isUserPaused = true;
 let audioCtx, analyser, dataArray;
-let silenceTimer = null; // Guardián de silencio
+let silenceTimer = null; 
+let streamStartTime = 0; // Referencia para la ventana de gracia
 
 // 1. SOLUCIÓN AL RECUADRO NARANJA (Blur forzado)
 function clearFocus() {
@@ -234,7 +236,7 @@ window.addEventListener('offline', () => {
     statusBadge.innerText = "SIN CONEXIÓN";
 });
 
-// 5. MOTOR DE REPRODUCCIÓN
+// 5. MOTOR DE REPRODUCCIÓN REFORZADO
 async function startStream() {
     if (isUserPaused) return;
     
@@ -243,12 +245,18 @@ async function startStream() {
     btn.innerText = "";
     statusBadge.innerText = "CONECTANDO...";
     
-    // Cache busting para obligar al worker a darnos un stream fresco
     player.src = `${WORKER}/api/stream?t=${Date.now()}`;
     
     try {
         await player.play();
+        
+        // Desbloqueo de AudioContext (crítico para el Vúmetro en móviles)
+        if (audioCtx && audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+        
         isPlaying = true;
+        streamStartTime = Date.now(); // Inicia reloj de gracia
         btn.innerText = "⏸";
         ring.style.display = "none";
         statusBadge.innerText = "● EN EL AIRE";
@@ -258,7 +266,8 @@ async function startStream() {
         console.error("Fallo de reproducción:", e);
         resetPlayer();
         statusBadge.innerText = "REINTENTANDO...";
-        setTimeout(startStream, 4000);
+        // Reintento espaciado para evitar bucles infinitos de error
+        setTimeout(() => { if(!isUserPaused) startStream(); }, 5000);
     }
 }
 
@@ -276,7 +285,7 @@ function resetPlayer() {
     ctx.clearRect(0,0,156,156);
 }
 
-// 6. LÓGICA DEL BOTÓN (Con prevención de foco)
+// 6. LÓGICA DEL BOTÓN
 btn.onclick = async () => {
     clearFocus();
     
@@ -300,7 +309,7 @@ btn.onclick = async () => {
     }
 };
 
-// 7. VÚMETRO + WATCHDOG (Monitor de Silencio Digital)
+// 7. VÚMETRO + WATCHDOG (Con ventana de gracia)
 function drawVu() {
     if(!isPlaying || isUserPaused) { 
         ctx.clearRect(0,0,156,156); 
@@ -314,15 +323,19 @@ function drawVu() {
     
     const avg = dataArray.reduce((a,b) => a+b) / dataArray.length;
 
-    // --- WATCHDOG: Si hay silencio total por 6 segundos, el stream murió ---
-    if (avg < 1.5) { 
+    // --- WATCHDOG REFORZADO ---
+    // Solo evalúa el silencio si ya pasaron 10 segundos de carga (Ventana de Gracia)
+    const gracePeriodPassed = (Date.now() - streamStartTime) > 10000;
+
+    if (gracePeriodPassed && avg < 0.2) { 
         if (!silenceTimer) {
             silenceTimer = setTimeout(() => {
                 if(!isUserPaused) {
-                    statusBadge.innerText = "RECUPERANDO SEÑAL...";
+                    console.log("Watchdog detectó stream muerto tras periodo de gracia.");
+                    statusBadge.innerText = "RECONECTANDO SEÑAL...";
                     startStream(); 
                 }
-            }, 6000); 
+            }, 10000); // 10 segundos extra de margen antes de reiniciar
         }
     } else {
         clearTimeout(silenceTimer);
@@ -337,7 +350,7 @@ function drawVu() {
     ctx.stroke();
 }
 
-// 8. KEEP-ALIVE AL WORKER (Mantiene la ruta activa)
+// 8. KEEP-ALIVE AL WORKER
 setInterval(() => {
     if (isPlaying && !isUserPaused) {
         fetch(`${WORKER}/api/radio-info`).catch(() => {});
@@ -374,6 +387,7 @@ async function fetchMeta() {
 
 setInterval(fetchMeta, 15000); fetchMeta();
 document.getElementById("volume").oninput = (e) => { if(player) player.volume = e.target.value; };
+</script>
 </script>
 
 </body>
