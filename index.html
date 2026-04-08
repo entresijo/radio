@@ -168,7 +168,6 @@
 <audio id="player" crossorigin="anonymous"></audio>
 
 <script>
-<script>
 const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
 const btn = document.getElementById("btn");
 const ring = document.getElementById("loading-ring");
@@ -387,7 +386,6 @@ async function fetchMeta() {
 
 setInterval(fetchMeta, 15000); fetchMeta();
 document.getElementById("volume").oninput = (e) => { if(player) player.volume = e.target.value; };
-</script>
 </script>
 
 </body>
