@@ -176,6 +176,8 @@ body {
 .play-btn.active {
   border-color: rgba(232,54,42,.5);
   background: #160e0e;
+
+.play-btn[data-disabled="true"] { opacity: .25; pointer-events: none; }  
 }
 
 /* ── VOLUME FADER ─────────────────────────────── */
@@ -401,7 +403,7 @@ body {
     <div class="btn-wrap">
       <div class="loading-ring" id="loading-ring"></div>
       <canvas id="vu-canvas" width="180" height="180"></canvas>
-      <button class="play-btn" id="btn" tabindex="-1" disabled>▶</button>
+      <div class="play-btn" id="btn" role="button" aria-label="Reproducir" data-disabled="true">▶</div>
     </div>
 
     <div class="vol-wrap">
@@ -464,34 +466,29 @@ let reconnectTimer = null
 let stallTimer     = null
 let reconnectCount = 0
 let histOpen       = false
+let wakeLock       = null
+let silentNode     = null
 
-const C = 90
-const R = 82
+const C = 90, R = 82
 
-// ── Clock ─────────────────────────────────────────
+// ── Clock ──────────────────────────────────────────
 function tick() {
   const n = new Date()
-  const t = n.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-  const d = n.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+  const t = n.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' })
+  const d = n.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'2-digit' })
   document.getElementById('clock').textContent = t + ' — ' + d
 }
-setInterval(tick, 1000)
-tick()
+setInterval(tick, 1000); tick()
 
-// ── VU ring ───────────────────────────────────────
+// ── VU ring ────────────────────────────────────────
 function drawRing(energy) {
   ctx.clearRect(0, 0, 180, 180)
-  ctx.beginPath()
-  ctx.arc(C, C, R, 0, Math.PI * 2)
-  ctx.strokeStyle = '#1c1414'
-  ctx.lineWidth = 1.5
-  ctx.stroke()
+  ctx.beginPath(); ctx.arc(C, C, R, 0, Math.PI*2)
+  ctx.strokeStyle = '#1c1414'; ctx.lineWidth = 1.5; ctx.stroke()
   if (energy > 0) {
-    ctx.beginPath()
-    ctx.arc(C, C, R, 0, Math.PI * 2)
-    ctx.strokeStyle = 'rgba(232,54,42,' + (.2 + energy * .8) + ')'
-    ctx.lineWidth = 1.5 + energy * 4
-    ctx.stroke()
+    ctx.beginPath(); ctx.arc(C, C, R, 0, Math.PI*2)
+    ctx.strokeStyle = 'rgba(232,54,42,' + (.15 + energy*.85) + ')'
+    ctx.lineWidth = 1.5 + energy * 4; ctx.stroke()
   }
 }
 drawRing(0)
@@ -500,12 +497,11 @@ function vuLoop() {
   if (!vuRunning) return
   requestAnimationFrame(vuLoop)
   analyser.getByteFrequencyData(dataArray)
-  let sum = 0
-  for (let i = 0; i < dataArray.length; i++) sum += dataArray[i]
-  drawRing(sum / dataArray.length / 255)
+  let s = 0; for (let i=0;i<dataArray.length;i++) s += dataArray[i]
+  drawRing(s / dataArray.length / 255)
 }
 
-// ── Audio context ─────────────────────────────────
+// ── Audio context ──────────────────────────────────
 function initAudio() {
   if (audioCtx) return
   audioCtx = new (window.AudioContext || window.webkitAudioContext)()
@@ -517,33 +513,70 @@ function initAudio() {
   analyser.connect(audioCtx.destination)
 }
 
-// ── Timers ────────────────────────────────────────
+// ── Silent node: keeps AudioContext alive on mobile ─
+// A zero-gain oscillator running continuously prevents
+// the browser from suspending the audio pipeline.
+function startSilentNode() {
+  if (!audioCtx || silentNode) return
+  const osc  = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+  gain.gain.value = 0.0001   // inaudible
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start()
+  silentNode = osc
+}
+
+// ── Wake Lock: prevents screen/CPU sleep on mobile ─
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return
+  try {
+    wakeLock = await navigator.wakeLock.request('screen')
+    wakeLock.addEventListener('release', () => {
+      // Re-request if we're still playing (lock released on tab hide)
+      if (isPlaying) setTimeout(requestWakeLock, 1000)
+    })
+  } catch {}
+}
+
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release().catch(()=>{}); wakeLock = null }
+}
+
+// ── Visibility change: resume context when tab returns ─
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && isPlaying) {
+    if (audioCtx?.state === 'suspended') audioCtx.resume()
+    // If player stalled while hidden, force reconnect
+    if (player.paused) scheduleReconnect()
+  }
+})
+
+// ── Timers ─────────────────────────────────────────
 function clearTimers() {
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
   if (stallTimer)     { clearTimeout(stallTimer);     stallTimer     = null }
 }
 
-// ── Show signal lost ──────────────────────────────
+// ── Show lost signal ───────────────────────────────
 function showSignalLost() {
   vuRunning = false
   drawRing(0)
-  ring.style.display  = 'none'
-  btn.textContent     = '▶'
+  ring.style.display = 'none'
+  btn.textContent    = '▶'
   btn.classList.remove('active')
-  badge.className     = 'status-badge'
-  badge.textContent   = 'SIN SEÑAL'
+  badge.className    = 'status-badge'
+  badge.textContent  = 'SIN SEÑAL'
 }
 
-// ── Reconnect ─────────────────────────────────────
+// ── Reconnect with backoff ─────────────────────────
 function scheduleReconnect() {
   if (!isPlaying) return
   clearTimers()
-
   showSignalLost()
 
   const delay = Math.min(2000 + reconnectCount * 1500, 12000)
   reconnectCount++
-
   badge.textContent = 'RECONECTANDO ' + reconnectCount + '...'
 
   reconnectTimer = setTimeout(async () => {
@@ -560,7 +593,7 @@ function scheduleReconnect() {
   }, delay)
 }
 
-// ── Player events ─────────────────────────────────
+// ── Player events ──────────────────────────────────
 player.addEventListener('playing', () => {
   clearTimers()
   reconnectCount     = 0
@@ -570,28 +603,26 @@ player.addEventListener('playing', () => {
   badge.className    = 'status-badge online'
   badge.textContent  = '● EN EL AIRE'
   if (audioCtx?.state === 'suspended') audioCtx.resume()
-  vuRunning = true
-  vuLoop()
+  vuRunning = true; vuLoop()
 })
 
 player.addEventListener('waiting', () => {
-  // Give buffer 5s to recover before reconnecting
   clearTimeout(stallTimer)
-  stallTimer = setTimeout(() => {
-    if (isPlaying) scheduleReconnect()
-  }, 5000)
+  stallTimer = setTimeout(() => { if (isPlaying) scheduleReconnect() }, 5000)
 })
 
 player.addEventListener('error', () => {
   if (isPlaying) scheduleReconnect()
 })
 
-// ── Play / Pause ──────────────────────────────────
+// ── Play / Pause ───────────────────────────────────
 btn.addEventListener('click', async () => {
-  btn.blur()
+  if (btn.dataset.disabled === 'true') return
 
   if (!isPlaying) {
     initAudio()
+    startSilentNode()
+    requestWakeLock()
     isPlaying          = true
     reconnectCount     = 0
     btn.textContent    = ''
@@ -613,7 +644,6 @@ btn.addEventListener('click', async () => {
     }
 
   } else {
-    // Manual pause
     isPlaying = false
     vuRunning = false
     clearTimers()
@@ -624,69 +654,59 @@ btn.addEventListener('click', async () => {
     btn.classList.remove('active')
     ring.style.display = 'none'
     drawRing(0)
-    // Refresh badge to show actual transmission state
+    releaseWakeLock()
     fetchMeta()
   }
 })
 
-// ── Volume ────────────────────────────────────────
-volSlider.addEventListener('input', e => {
-  player.volume = parseFloat(e.target.value)
-})
+// ── Volume ─────────────────────────────────────────
+volSlider.addEventListener('input', e => { player.volume = parseFloat(e.target.value) })
 
-// ── History toggle ────────────────────────────────
+// ── History toggle ─────────────────────────────────
 histBtn.addEventListener('click', () => {
   histOpen = !histOpen
   histList.classList.toggle('open', histOpen)
   histArrow.classList.toggle('open', histOpen)
-  histBtn.blur()
 })
 
-// ── Fetch metadata ────────────────────────────────
+// ── Fetch metadata ─────────────────────────────────
 async function fetchMeta() {
   try {
     const res  = await fetch(INFO, { cache: 'no-store' })
     const data = await res.json()
 
-    // Station name / description
-    const rawName  = data.radioName || 'ENTRESIJO RADIO'
+    // Station name parsing
+    const rawName   = data.radioName || 'ENTRESIJO RADIO'
     const dashMatch = rawName.match(/^(.+?)\s*-([^-]+)-\s*$/)
     if (dashMatch) {
       document.getElementById('station-name').textContent = dashMatch[1].trim().toUpperCase()
       document.getElementById('station-desc').textContent = dashMatch[2].trim()
     } else {
       document.getElementById('station-name').textContent = rawName.toUpperCase()
-      if (data.description)
-        document.getElementById('station-desc').textContent = data.description
+      if (data.description) document.getElementById('station-desc').textContent = data.description
     }
 
     // Listeners
     document.getElementById('listeners').textContent =
-      (typeof data.listeners === 'number' && data.listeners > 0)
-        ? data.listeners + ' oyentes en vivo'
-        : ''
+      (data.listeners > 0) ? data.listeners + ' oyentes en vivo' : ''
 
     if (data.isLive) {
-      btn.disabled = false
+      // Enable button
+      btn.dataset.disabled = 'false'
 
-      // If player is idle (not mid-connect or playing) show on-air
-      if (!isPlaying && !reconnectCount) {
+      // Only update badge if not mid-connection
+      if (!isPlaying && reconnectCount === 0) {
         badge.className   = 'status-badge online'
         badge.textContent = '● EN EL AIRE'
       }
 
-      // If we think we're playing but fetchMeta says stream is live
-      // and we're stuck in reconnect, give it one more push
-      if (isPlaying && reconnectCount > 0 && !reconnectTimer) {
-        scheduleReconnect()
-      }
-
+      // Artist / title
       const raw     = (data.artist || '').trim()
-      const generic = raw === '' || raw.toLowerCase() === 'en vivo'
-      document.getElementById('artist').textContent =
-        generic ? 'ESCUCHANDO AHORA' : raw.toUpperCase()
-      document.getElementById('title').textContent = data.title || 'Transmisión en vivo'
+      const generic = !raw || raw.toLowerCase() === 'en vivo'
+      document.getElementById('artist').textContent = generic ? 'ESCUCHANDO AHORA' : raw.toUpperCase()
+      document.getElementById('title').textContent  = data.title || 'Transmisión en vivo'
 
+      // History
       if (Array.isArray(data.history) && data.history.length) {
         histList.innerHTML = data.history.map(h => {
           const ga = !h.artist || h.artist.toLowerCase() === 'en vivo'
@@ -699,17 +719,20 @@ async function fetchMeta() {
       }
 
     } else {
-      // Stream is truly offline on the server side
-      btn.disabled = true
+      // Stream is offline on server
+      btn.dataset.disabled = 'true'
 
       if (isPlaying) {
-        // Was playing, server went offline → stop and show signal lost
+        // Was playing → server went offline → stop gracefully
         isPlaying = false
         clearTimers()
+        reconnectCount = 0
         player.pause()
         player.src = ''
+        releaseWakeLock()
         showSignalLost()
-      } else if (!reconnectCount) {
+        badge.textContent = 'FUERA DEL AIRE'
+      } else if (reconnectCount === 0) {
         badge.className   = 'status-badge'
         badge.textContent = 'FUERA DEL AIRE'
         document.getElementById('artist').textContent = 'SIN SEÑAL'
@@ -724,7 +747,6 @@ async function fetchMeta() {
 
 setInterval(fetchMeta, 15000)
 fetchMeta()
-
 </script>
 </body>
 </html>
