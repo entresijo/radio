@@ -166,6 +166,7 @@ body {
   outline: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .play-btn:focus,
@@ -176,9 +177,9 @@ body {
 .play-btn.active {
   border-color: rgba(232,54,42,.5);
   background: #160e0e;
-
-.play-btn[data-disabled="true"] { opacity: .25; pointer-events: none; }  
 }
+
+.play-btn[data-disabled="true"] { opacity: .25; pointer-events: none; }
 
 /* ── VOLUME FADER ─────────────────────────────── */
 .vol-wrap {
