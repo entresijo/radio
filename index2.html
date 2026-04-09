@@ -411,7 +411,11 @@ button, input, select, a, [role="button"] {
     <div class="btn-wrap">
       <div class="loading-ring" id="loading-ring"></div>
       <canvas id="vu-canvas" width="180" height="180"></canvas>
-      <div class="play-btn" id="btn" role="button" aria-label="Reproducir" data-disabled="true">▶</div>
+     <div class="play-btn" id="btn" role="button" 
+     tabindex="-1"
+     aria-label="Reproducir"
+     data-disabled="true"
+     style="-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;">▶</div>
     </div>
 
     <div class="vol-wrap">
@@ -454,6 +458,7 @@ const WORKER = 'https://white-mud-e8b6.entresijoradio.workers.dev'
 const STREAM = WORKER + '/api/stream'
 const INFO   = WORKER + '/api/radio-info'
 
+const btnIcon   = document.getElementById('btn-icon')  
 const btn       = document.getElementById('btn')
 const player    = document.getElementById('player')
 const ring      = document.getElementById('loading-ring')
@@ -571,7 +576,7 @@ function showSignalLost() {
   vuRunning = false
   drawRing(0)
   ring.style.display = 'none'
-  btn.textContent    = '▶'
+  btnIcon.textContent    = '▶'
   btn.classList.remove('active')
   badge.className    = 'status-badge'
   badge.textContent  = 'SIN SEÑAL'
@@ -590,7 +595,7 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(async () => {
     if (!isPlaying) return
     ring.style.display = 'block'
-    btn.textContent    = ''
+    btnIcon.textContent    = ''
     player.src = STREAM + '?t=' + Date.now()
     try {
       await player.play()
@@ -606,7 +611,7 @@ player.addEventListener('playing', () => {
   clearTimers()
   reconnectCount     = 0
   ring.style.display = 'none'
-  btn.textContent    = '⏸'
+  btnIcon.textContent    = '⏸'
   btn.classList.add('active')
   badge.className    = 'status-badge online'
   badge.textContent  = '● EN EL AIRE'
@@ -625,6 +630,8 @@ player.addEventListener('error', () => {
 
 // ── Play / Pause ───────────────────────────────────
 btn.addEventListener('click', async () => {
+  document.activeElement?.blur()  // ← agregá esta línea
+  if (window.getSelection) window.getSelection().removeAllRanges()  // ← y esta
   if (btn.dataset.disabled === 'true') return
 
   if (!isPlaying) {
@@ -633,7 +640,7 @@ btn.addEventListener('click', async () => {
     requestWakeLock()
     isPlaying          = true
     reconnectCount     = 0
-    btn.textContent    = ''
+    btnIcon.textContent    = ''
     ring.style.display = 'block'
     badge.className    = 'status-badge connecting'
     badge.textContent  = 'CONECTANDO...'
@@ -644,7 +651,7 @@ btn.addEventListener('click', async () => {
     } catch (e) {
       if (e.name !== 'AbortError') {
         isPlaying          = false
-        btn.textContent    = '▶'
+        btnIcon.textContent    = '▶'
         ring.style.display = 'none'
         badge.className    = 'status-badge'
         badge.textContent  = 'ERROR DE CONEXIÓN'
@@ -658,7 +665,7 @@ btn.addEventListener('click', async () => {
     reconnectCount     = 0
     player.pause()
     player.src         = ''
-    btn.textContent    = '▶'
+    btnIcon.textContent    = '▶'
     btn.classList.remove('active')
     ring.style.display = 'none'
     drawRing(0)
