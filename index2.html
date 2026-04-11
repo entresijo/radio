@@ -9,10 +9,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&display=swap" rel="stylesheet">
 <style>
 
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent !important; }
 
 :root {
   --red:     #e8362a;
+  --amber:   #d4882a;
   --bg:      #080606;
   --surface: #120d0d;
   --text:    #ede8e5;
@@ -31,7 +32,10 @@ body {
   padding: 28px 20px;
 }
 
-button, input, select, a, [role="button"] { outline: none; }
+button, input, select, a, [role="button"] {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
 
 .app {
   width: 100%;
@@ -94,8 +98,8 @@ button, input, select, a, [role="button"] { outline: none; }
 }
 
 #status-badge.connecting {
-  color: #d4882a;
-  border-color: #d4882a;
+  color: var(--amber);
+  border-color: var(--amber);
 }
 
 @keyframes badge-breathe {
@@ -123,11 +127,11 @@ button, input, select, a, [role="button"] { outline: none; }
   position: absolute;
   inset: -12px;
   border: 2px solid transparent;
-  border-top-color: var(--red);
-  border-right-color: rgba(232,54,42,.25);
+  border-top-color: var(--ring-color, var(--red));
+  border-right-color: var(--ring-fade, rgba(232,54,42,.25));
   border-radius: 50%;
   display: none;
-  animation: spin .85s cubic-bezier(.5,0,.5,1) infinite;
+  animation: spin var(--ring-speed, .85s) cubic-bezier(.5,0,.5,1) infinite;
   pointer-events: none;
   z-index: 3;
 }
@@ -160,9 +164,9 @@ button, input, select, a, [role="button"] { outline: none; }
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+  outline: none !important;
 }
-
-.play-btn:active { transform: scale(.93); }
 
 .play-btn.active {
   border-color: rgba(232,54,42,.5);
@@ -195,6 +199,7 @@ button, input, select, a, [role="button"] { outline: none; }
   border-radius: 3px;
   cursor: pointer;
   outline: none;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 .vol-slider::-webkit-slider-thumb {
@@ -280,6 +285,7 @@ button, input, select, a, [role="button"] { outline: none; }
   border: 1px solid rgba(45,200,102,.2);
   border-radius: 4px;
   transition: border-color .2s, background .2s;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 .ws-btn:hover, .ws-btn:active {
@@ -309,6 +315,7 @@ button, input, select, a, [role="button"] { outline: none; }
   display: flex;
   align-items: center;
   gap: 8px;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 .history-toggle:hover { color: var(--text); }
@@ -382,9 +389,7 @@ button, input, select, a, [role="button"] { outline: none; }
            role="button"
            tabindex="-1"
            aria-label="Reproducir"
-           data-disabled="true"
-           onfocus="this.blur()"
-           style="-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:manipulation;">
+           data-disabled="true">
         <span id="btn-icon" style="pointer-events:none;user-select:none;-webkit-user-select:none;">▶</span>
       </div>
     </div>
@@ -439,8 +444,11 @@ const histBtn   = document.getElementById('hist-toggle')
 const histList  = document.getElementById('history-list')
 const histArrow = document.getElementById('hist-arrow')
 
+// ── State ──────────────────────────────────────────
 let isPlaying      = false
-let isConnecting   = false   // true mientras bufferizando, evita falsos reconectos
+let isConnecting   = false
+let isReconnecting = false
+let preloadStarted = false   // true once touchstart/mousedown begins preload
 let audioCtx       = null
 let analyser       = null
 let dataArray      = null
@@ -454,9 +462,22 @@ let silentNode     = null
 
 const C = 90, R = 82
 
+// ── Icon helper ────────────────────────────────────
 function setIcon(x) {
   const el = document.getElementById('btn-icon')
   if (el) el.textContent = x
+}
+
+// ── Ring appearance ────────────────────────────────
+function setRing(show, color, speed) {
+  if (!show) { ring.style.display = 'none'; return }
+  const isAmber = color === 'amber'
+  ring.style.setProperty('--ring-color',
+    isAmber ? 'var(--amber)' : 'var(--red)')
+  ring.style.setProperty('--ring-fade',
+    isAmber ? 'rgba(212,136,42,.25)' : 'rgba(232,54,42,.25)')
+  ring.style.setProperty('--ring-speed', (speed || .85) + 's')
+  ring.style.display = 'block'
 }
 
 // ── Clock ──────────────────────────────────────────
@@ -499,7 +520,7 @@ function vuLoop() {
 // ── Audio context ──────────────────────────────────
 function initAudio() {
   if (audioCtx) return
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' })
   analyser = audioCtx.createAnalyser()
   analyser.fftSize = 64
   dataArray = new Uint8Array(analyser.frequencyBinCount)
@@ -508,26 +529,23 @@ function initAudio() {
   analyser.connect(audioCtx.destination)
 }
 
-// ── Silent oscillator: keeps AudioContext alive on mobile ──
-// Android/iOS suspend the AudioContext after a few seconds
-// of inactivity. A near-zero gain oscillator prevents that.
+// ── Silent oscillator: keeps AudioContext alive ────
 function startSilentNode() {
   if (!audioCtx || silentNode) return
   const osc  = audioCtx.createOscillator()
   const gain = audioCtx.createGain()
-  gain.gain.value = 0.00001   // completely inaudible
+  gain.gain.value = 0.00001
   osc.connect(gain)
   gain.connect(audioCtx.destination)
   osc.start()
   silentNode = osc
 }
 
-// ── Wake Lock: prevents Android from sleeping the tab ─────
+// ── Wake Lock ──────────────────────────────────────
 async function requestWakeLock() {
   if (!('wakeLock' in navigator)) return
   try {
     wakeLock = await navigator.wakeLock.request('screen')
-    // Re-request if released (happens when tab goes to background)
     wakeLock.addEventListener('release', () => {
       if (isPlaying) setTimeout(requestWakeLock, 1000)
     })
@@ -538,23 +556,51 @@ function releaseWakeLock() {
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null }
 }
 
-// ── Resume on tab return ───────────────────────────
+// ── Prebuffer on press ─────────────────────────────
+// Starts loading the stream as soon as the user touches/clicks
+// the button, before the click event fires. This gives the
+// browser 200-400ms head start on buffering, reducing
+// perceived latency by 1-2 seconds.
+function startPreload() {
+  if (isPlaying || preloadStarted || btn.dataset.disabled === 'true') return
+  preloadStarted = true
+  initAudio()   // init audio context on first user gesture
+  player.src = STREAM + '?t=' + Date.now()
+  player.load()
+}
+
+btn.addEventListener('mousedown', startPreload)
+
+// touchstart: use passive:true so scroll isn't blocked,
+// but still start preloading
+btn.addEventListener('touchstart', e => {
+  startPreload()
+}, { passive: true })
+
+// touchend: fire click manually since we didn't preventDefault
+btn.addEventListener('touchend', e => {
+  e.preventDefault()
+  if (!isPlaying && btn.dataset.disabled !== 'true') {
+    handlePlay()
+  } else if (isPlaying) {
+    handlePause()
+  }
+}, { passive: false })
+
+// ── Visibility ─────────────────────────────────────
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && isPlaying) {
     if (audioCtx?.state === 'suspended') audioCtx.resume()
-    // Only reconnect if truly stalled, not just buffering
-    if (player.paused && !isConnecting && !reconnectTimer) {
+    if (player.paused && !isConnecting && !isReconnecting) {
       scheduleReconnect()
     }
   }
 })
 
-// ── Heartbeat ─────────────────────────────────────
-// Catches stalls that events miss, but skips during
-// initial connection buffering to avoid false triggers.
+// ── Heartbeat ──────────────────────────────────────
 setInterval(() => {
-  if (!isPlaying || isConnecting) return
-  if ((player.paused || player.readyState < 2) && !reconnectTimer) {
+  if (!isPlaying || isConnecting || isReconnecting) return
+  if (player.paused || player.readyState < 2) {
     scheduleReconnect()
   }
 }, 4000)
@@ -569,40 +615,45 @@ function clearTimers() {
 function showSignalLost() {
   vuRunning = false
   drawRing(0)
-  ring.style.display = 'none'
+  setRing(false)
   setIcon('▶')
   btn.classList.remove('active')
   badge.className   = 'status-badge'
   badge.textContent = 'SIN SEÑAL'
 }
 
-// ── Reconnect with backoff ─────────────────────────
+// ── Reconnect ──────────────────────────────────────
 function scheduleReconnect() {
   if (!isPlaying) return
-  if (reconnectTimer) return   // already scheduled, don't stack
-  clearTimeout(stallTimer)
-  stallTimer = null
+  if (isReconnecting) return
 
+  isReconnecting = true
+  clearTimers()
   showSignalLost()
-  const delay = Math.min(2000 + reconnectCount * 1500, 12000)
+
+  const delay     = Math.min(2000 + reconnectCount * 2000, 12000)
+  const ringSpeed = Math.min(0.6 + reconnectCount * 0.3, 2.0).toFixed(1)
   reconnectCount++
-  badge.textContent = 'RECONECTANDO ' + reconnectCount + '...'
+
+  badge.className   = 'status-badge connecting'
+  badge.textContent = 'BUSCANDO SEÑAL...'
+  setRing(true, 'amber', parseFloat(ringSpeed))
 
   reconnectTimer = setTimeout(async () => {
     reconnectTimer = null
-    if (!isPlaying) return
-    isConnecting       = true
-    ring.style.display = 'block'
+    if (!isPlaying) { isReconnecting = false; return }
+
     setIcon('')
     player.pause()
     player.src = ''
-    await new Promise(r => setTimeout(r, 300))
+    preloadStarted = false
+    await new Promise(r => setTimeout(r, 200))
+
     player.src = STREAM + '?t=' + Date.now()
     try {
       await player.play()
-      reconnectCount = 0
     } catch (e) {
-      isConnecting = false
+      isReconnecting = false
       if (e.name !== 'AbortError') scheduleReconnect()
     }
   }, delay)
@@ -610,10 +661,12 @@ function scheduleReconnect() {
 
 // ── Player events ──────────────────────────────────
 player.addEventListener('playing', () => {
-  isConnecting       = false   // buffer complete, now truly playing
+  isConnecting   = false
+  isReconnecting = false
+  preloadStarted = false
   clearTimers()
   reconnectCount     = 0
-  ring.style.display = 'none'
+  setRing(false)
   setIcon('⏸')
   btn.classList.add('active')
   badge.className   = 'status-badge online'
@@ -624,65 +677,81 @@ player.addEventListener('playing', () => {
 })
 
 player.addEventListener('waiting', () => {
-  // Buffer momentarily empty — wait 5s before declaring it dead
   clearTimeout(stallTimer)
   stallTimer = setTimeout(() => {
-    if (isPlaying && !isConnecting && !reconnectTimer) scheduleReconnect()
-  }, 5000)
+    if (isPlaying && !isConnecting && !isReconnecting) scheduleReconnect()
+  }, 6000)
 })
 
 player.addEventListener('error', () => {
   isConnecting = false
-  if (isPlaying && !reconnectTimer) scheduleReconnect()
+  if (isPlaying && !isReconnecting) scheduleReconnect()
 })
 
-// ── Play / Pause ───────────────────────────────────
-btn.addEventListener('click', async () => {
-  if (window.getSelection) window.getSelection().removeAllRanges()
-  if (btn.dataset.disabled === 'true') return
+// ── Play logic (shared by click and touchend) ──────
+async function handlePlay() {
+  startSilentNode()
+  requestWakeLock()
 
-  if (!isPlaying) {
-    initAudio()
-    startSilentNode()
-    requestWakeLock()
+  isPlaying      = true
+  isConnecting   = true
+  isReconnecting = false
+  reconnectCount = 0
 
-    isPlaying          = true
-    isConnecting       = true   // suppress heartbeat during initial buffer
-    reconnectCount     = 0
-    setIcon('')
-    ring.style.display = 'block'
-    badge.className    = 'status-badge connecting'
-    badge.textContent  = 'CONECTANDO...'
+  setIcon('')
+  setRing(true, 'red', 0.85)
+  badge.className   = 'status-badge connecting'
+  badge.textContent = 'CONECTANDO...'
 
+  // If preload already started, skip reassigning src
+  if (!preloadStarted) {
     player.src = STREAM + '?t=' + Date.now()
-    try {
-      await player.play()
-      // isConnecting = false is set by the 'playing' event
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        isPlaying          = false
-        isConnecting       = false
-        setIcon('▶')
-        ring.style.display = 'none'
-        badge.className    = 'status-badge'
-        badge.textContent  = 'ERROR DE CONEXIÓN'
-      }
-    }
+  }
+  preloadStarted = false
 
+  try {
+    await player.play()
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      isPlaying      = false
+      isConnecting   = false
+      preloadStarted = false
+      setIcon('▶')
+      setRing(false)
+      badge.className   = 'status-badge'
+      badge.textContent = 'ERROR DE CONEXIÓN'
+    }
+  }
+}
+
+// ── Pause logic (shared by click and touchend) ─────
+function handlePause() {
+  isPlaying      = false
+  isConnecting   = false
+  isReconnecting = false
+  preloadStarted = false
+  vuRunning      = false
+  clearTimers()
+  reconnectCount = 0
+  player.pause()
+  player.src = ''
+  setIcon('▶')
+  btn.classList.remove('active')
+  setRing(false)
+  drawRing(0)
+  releaseWakeLock()
+  fetchMeta()
+}
+
+// ── Click handler (desktop / fallback) ────────────
+btn.addEventListener('click', async () => {
+  if (btn.dataset.disabled === 'true') return
+  // On touch devices, touchend already handled it.
+  // On desktop (no touch), handle here.
+  if (!isPlaying) {
+    await handlePlay()
   } else {
-    isPlaying    = false
-    isConnecting = false
-    vuRunning    = false
-    clearTimers()
-    reconnectCount = 0
-    player.pause()
-    player.src = ''
-    setIcon('▶')
-    btn.classList.remove('active')
-    ring.style.display = 'none'
-    drawRing(0)
-    releaseWakeLock()
-    fetchMeta()
+    handlePause()
   }
 })
 
@@ -721,10 +790,12 @@ async function fetchMeta() {
     if (data.isLive) {
       btn.dataset.disabled = 'false'
 
-      if (!isPlaying && reconnectCount === 0) {
+      if (!isPlaying && !isConnecting && !isReconnecting && reconnectCount === 0) {
         badge.className   = 'status-badge online'
         badge.textContent = '● EN EL AIRE'
       }
+
+      if (isReconnecting && !reconnectTimer) scheduleReconnect()
 
       const raw     = (data.artist || '').trim()
       const generic = !raw || raw.toLowerCase() === 'en vivo'
@@ -747,9 +818,11 @@ async function fetchMeta() {
     } else {
       btn.dataset.disabled = 'true'
 
-      if (isPlaying) {
-        isPlaying    = false
-        isConnecting = false
+      if (isPlaying && !isReconnecting) {
+        isPlaying      = false
+        isConnecting   = false
+        isReconnecting = false
+        preloadStarted = false
         clearTimers()
         reconnectCount = 0
         player.pause()
@@ -757,7 +830,7 @@ async function fetchMeta() {
         releaseWakeLock()
         showSignalLost()
         badge.textContent = 'FUERA DEL AIRE'
-      } else if (reconnectCount === 0) {
+      } else if (!isPlaying && !isReconnecting) {
         badge.className   = 'status-badge'
         badge.textContent = 'FUERA DEL AIRE'
         document.getElementById('artist').textContent = 'SIN SEÑAL'
