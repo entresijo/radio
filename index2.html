@@ -41,7 +41,7 @@ button, input, select, a, [role="button"] { outline: none; }
   align-items: center;
 }
 
-/* HEADER */
+/* ── HEADER ─────────────────────────────────── */
 .header { text-align: center; margin-bottom: 40px; }
 
 #station-name {
@@ -70,7 +70,7 @@ button, input, select, a, [role="button"] { outline: none; }
   letter-spacing: 1.5px;
 }
 
-/* STATUS BADGE */
+/* ── STATUS BADGE ───────────────────────────── */
 #status-badge {
   font-family: 'DM Mono', monospace;
   font-size: 10px;
@@ -103,7 +103,7 @@ button, input, select, a, [role="button"] { outline: none; }
   50%      { box-shadow: 0 0 18px rgba(232,54,42,.4); opacity: 1; }
 }
 
-/* CONTROLS */
+/* ── CONTROLS ───────────────────────────────── */
 .controls-row {
   display: flex;
   align-items: center;
@@ -174,7 +174,7 @@ button, input, select, a, [role="button"] { outline: none; }
   pointer-events: none;
 }
 
-/* VOLUME */
+/* ── VOLUME ─────────────────────────────────── */
 .vol-wrap {
   display: flex;
   flex-direction: column;
@@ -225,7 +225,7 @@ button, input, select, a, [role="button"] { outline: none; }
   letter-spacing: 2px;
 }
 
-/* METADATA */
+/* ── METADATA ───────────────────────────────── */
 .meta {
   text-align: center;
   width: 100%;
@@ -264,7 +264,7 @@ button, input, select, a, [role="button"] { outline: none; }
   min-height: 14px;
 }
 
-/* WHATSAPP */
+/* ── WHATSAPP ───────────────────────────────── */
 .ws-btn {
   display: inline-flex;
   align-items: center;
@@ -287,7 +287,7 @@ button, input, select, a, [role="button"] { outline: none; }
   background: rgba(45,200,102,.05);
 }
 
-/* HISTORY */
+/* ── HISTORY ────────────────────────────────── */
 .history {
   width: 100%;
   border-top: 1px solid var(--dim);
@@ -383,6 +383,7 @@ button, input, select, a, [role="button"] { outline: none; }
            tabindex="-1"
            aria-label="Reproducir"
            data-disabled="true"
+           onfocus="this.blur()"
            style="-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:manipulation;">
         <span id="btn-icon" style="pointer-events:none;user-select:none;-webkit-user-select:none;">▶</span>
       </div>
@@ -439,6 +440,7 @@ const histList  = document.getElementById('history-list')
 const histArrow = document.getElementById('hist-arrow')
 
 let isPlaying      = false
+let isConnecting   = false   // true mientras bufferizando, evita falsos reconectos
 let audioCtx       = null
 let analyser       = null
 let dataArray      = null
@@ -452,7 +454,6 @@ let silentNode     = null
 
 const C = 90, R = 82
 
-// helper: always safe, never throws
 function setIcon(x) {
   const el = document.getElementById('btn-icon')
   if (el) el.textContent = x
@@ -507,23 +508,26 @@ function initAudio() {
   analyser.connect(audioCtx.destination)
 }
 
-// ── Silent oscillator keeps AudioContext alive ─────
+// ── Silent oscillator: keeps AudioContext alive on mobile ──
+// Android/iOS suspend the AudioContext after a few seconds
+// of inactivity. A near-zero gain oscillator prevents that.
 function startSilentNode() {
   if (!audioCtx || silentNode) return
   const osc  = audioCtx.createOscillator()
   const gain = audioCtx.createGain()
-  gain.gain.value = 0.00001
+  gain.gain.value = 0.00001   // completely inaudible
   osc.connect(gain)
   gain.connect(audioCtx.destination)
   osc.start()
   silentNode = osc
 }
 
-// ── Wake Lock ──────────────────────────────────────
+// ── Wake Lock: prevents Android from sleeping the tab ─────
 async function requestWakeLock() {
   if (!('wakeLock' in navigator)) return
   try {
     wakeLock = await navigator.wakeLock.request('screen')
+    // Re-request if released (happens when tab goes to background)
     wakeLock.addEventListener('release', () => {
       if (isPlaying) setTimeout(requestWakeLock, 1000)
     })
@@ -534,17 +538,22 @@ function releaseWakeLock() {
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null }
 }
 
-// ── Visibility: resume when tab comes back ─────────
+// ── Resume on tab return ───────────────────────────
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && isPlaying) {
     if (audioCtx?.state === 'suspended') audioCtx.resume()
-    if (player.paused && !reconnectTimer) scheduleReconnect()
+    // Only reconnect if truly stalled, not just buffering
+    if (player.paused && !isConnecting && !reconnectTimer) {
+      scheduleReconnect()
+    }
   }
 })
 
-// ── Heartbeat: catches stalls events miss ──────────
+// ── Heartbeat ─────────────────────────────────────
+// Catches stalls that events miss, but skips during
+// initial connection buffering to avoid false triggers.
 setInterval(() => {
-  if (!isPlaying) return
+  if (!isPlaying || isConnecting) return
   if ((player.paused || player.readyState < 2) && !reconnectTimer) {
     scheduleReconnect()
   }
@@ -570,7 +579,7 @@ function showSignalLost() {
 // ── Reconnect with backoff ─────────────────────────
 function scheduleReconnect() {
   if (!isPlaying) return
-  if (reconnectTimer) return
+  if (reconnectTimer) return   // already scheduled, don't stack
   clearTimeout(stallTimer)
   stallTimer = null
 
@@ -582,6 +591,7 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(async () => {
     reconnectTimer = null
     if (!isPlaying) return
+    isConnecting       = true
     ring.style.display = 'block'
     setIcon('')
     player.pause()
@@ -592,6 +602,7 @@ function scheduleReconnect() {
       await player.play()
       reconnectCount = 0
     } catch (e) {
+      isConnecting = false
       if (e.name !== 'AbortError') scheduleReconnect()
     }
   }, delay)
@@ -599,6 +610,7 @@ function scheduleReconnect() {
 
 // ── Player events ──────────────────────────────────
 player.addEventListener('playing', () => {
+  isConnecting       = false   // buffer complete, now truly playing
   clearTimers()
   reconnectCount     = 0
   ring.style.display = 'none'
@@ -612,13 +624,15 @@ player.addEventListener('playing', () => {
 })
 
 player.addEventListener('waiting', () => {
+  // Buffer momentarily empty — wait 5s before declaring it dead
   clearTimeout(stallTimer)
   stallTimer = setTimeout(() => {
-    if (isPlaying && !reconnectTimer) scheduleReconnect()
+    if (isPlaying && !isConnecting && !reconnectTimer) scheduleReconnect()
   }, 5000)
 })
 
 player.addEventListener('error', () => {
+  isConnecting = false
   if (isPlaying && !reconnectTimer) scheduleReconnect()
 })
 
@@ -631,7 +645,9 @@ btn.addEventListener('click', async () => {
     initAudio()
     startSilentNode()
     requestWakeLock()
+
     isPlaying          = true
+    isConnecting       = true   // suppress heartbeat during initial buffer
     reconnectCount     = 0
     setIcon('')
     ring.style.display = 'block'
@@ -641,9 +657,11 @@ btn.addEventListener('click', async () => {
     player.src = STREAM + '?t=' + Date.now()
     try {
       await player.play()
+      // isConnecting = false is set by the 'playing' event
     } catch (e) {
       if (e.name !== 'AbortError') {
         isPlaying          = false
+        isConnecting       = false
         setIcon('▶')
         ring.style.display = 'none'
         badge.className    = 'status-badge'
@@ -652,8 +670,9 @@ btn.addEventListener('click', async () => {
     }
 
   } else {
-    isPlaying = false
-    vuRunning = false
+    isPlaying    = false
+    isConnecting = false
+    vuRunning    = false
     clearTimers()
     reconnectCount = 0
     player.pause()
@@ -729,7 +748,8 @@ async function fetchMeta() {
       btn.dataset.disabled = 'true'
 
       if (isPlaying) {
-        isPlaying = false
+        isPlaying    = false
+        isConnecting = false
         clearTimers()
         reconnectCount = 0
         player.pause()
