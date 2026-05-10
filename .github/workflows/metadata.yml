@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: radio-metadata
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update:
@@ -37,6 +37,6 @@ jobs:
 
           git commit -m "auto update"
 
-          git pull --rebase origin main
+          git pull --rebase -X theirs origin main
 
           git push origin main
