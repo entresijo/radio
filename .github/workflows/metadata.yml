@@ -5,12 +5,18 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
+concurrency:
+  group: radio-metadata
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Python deps
         run: pip install requests
@@ -18,7 +24,7 @@ jobs:
       - name: Run parser
         run: python3 parse.py
 
-      - name: Force commit
+      - name: Commit and push updates
         run: |
           git config user.name "bot"
           git config user.email "bot@github.com"
@@ -26,7 +32,11 @@ jobs:
           date > heartbeat.txt
 
           git add .
-          git commit -m "auto update" || echo "no changes"
-          git fetch origin main
-          git rebase origin/main || echo "no changes to rebase"
-          git push
+
+          git diff --cached --quiet && echo "No changes" && exit 0
+
+          git commit -m "auto update"
+
+          git pull --rebase origin main
+
+          git push origin main
