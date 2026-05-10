@@ -27,4 +27,6 @@ jobs:
 
           git add .
           git commit -m "auto update" || echo "no changes"
+          git fetch origin main
+          git rebase origin/main || echo "no changes to rebase"
           git push
