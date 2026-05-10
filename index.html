@@ -13,7 +13,6 @@
         --text: #e0e0e0; 
         --text-dim: #444; 
     }
-
     * { -webkit-tap-highlight-color: transparent !important; outline: none !important; box-sizing: border-box; }
     
     body { 
@@ -22,16 +21,11 @@
         justify-content: center; align-items: center; min-height: 100vh;
         padding: 20px; overflow-x: hidden;
     }
-
     .player-app { width: 100%; max-width: 440px; text-align: center; }
-
-    /* Header */
     .top-bar { margin-bottom: 40px; }
     #station-name { font-weight: 800; font-size: 13px; letter-spacing: 6px; color: var(--primary-bright); display: block; margin-bottom: 12px; text-transform: uppercase; }
     #description { font-size: 10px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; display: block; margin-bottom: 8px; }
     #clock { font-size: 11px; color: #333; }
-
-    /* Badge */
     #status-badge { 
         font-size: 12px; font-weight: 800; padding: 12px 30px; 
         border-radius: 4px; display: inline-block; margin-bottom: 50px;
@@ -39,35 +33,30 @@
         border: 1px solid #111; color: #222;
     }
     #status-badge.online { color: var(--primary-bright); border-color: #3d0907; }
-
-    /* CORE UI - El secreto del centrado */
+    #status-badge.reconnecting { color: #555; border-color: #222; }
     .core-ui { 
         position: relative;
         display: flex; 
         align-items: center; 
-        justify-content: center; /* Centra el contenido principal */
+        justify-content: center;
         margin-bottom: 60px;
         width: 100%;
     }
-    
     .play-outer { 
         position: relative; 
         width: 120px; 
         height: 120px; 
         z-index: 5;
     }
-
-    /* VOLUMEN - Posicionado a la derecha sin afectar el centro del botón */
     .vol-fader { 
         position: absolute;
-        right: 10%; /* Lo pega al borde derecho del contenedor */
+        right: 10%;
         display: flex; 
         flex-direction: column; 
         align-items: center; 
         gap: 10px; 
         width: 40px;
     }
-
     .loading-ring {
         position: absolute; top: -8px; left: -8px; right: -8px; bottom: -8px;
         border: 2px solid rgba(128, 19, 15, 0.05);
@@ -75,9 +64,7 @@
         border-radius: 50%; display: none;
         animation: spin 0.8s linear infinite; z-index: 1;
     }
-
     #vu-canvas { position: absolute; top: -25px; left: -25px; z-index: 2; transform: rotate(-90deg); pointer-events: none; }
-
     .play-btn {
         position: relative; z-index: 10; width: 100%; height: 100%; 
         border-radius: 50%; background: #080808; border: 1px solid #1a1a1a;
@@ -86,8 +73,6 @@
         box-shadow: inset 0 0 20px rgba(0,0,0,1);
     }
     .play-btn:active { transform: scale(0.95); }
-
-    /* Slider Estilizado */
     .vol-slider {
         -webkit-appearance: none; width: 120px; height: 2px;
         background: #111; border-radius: 10px;
@@ -98,312 +83,349 @@
         background: var(--primary); border-radius: 1px;
     }
     .vol-label { font-size: 9px; color: #333; font-weight: 800; letter-spacing: 1px; }
-
-    /* Metadata */
     .meta-display { margin-bottom: 60px; }
     #artist { display: block; font-size: 13px; font-weight: 700; color: var(--primary-bright); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 15px; }
     #title { display: block; font-size: 28px; font-weight: 200; line-height: 1.2; color: #fff; }
-
-    /* Historial Noir */
     .history-wrap { text-align: left; border-top: 1px solid #0d0d0d; padding-top: 30px; }
     .history-toggle { background: none; border: none; color: #222; font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; }
     #history-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
     .h-item { font-size: 13px; margin-top: 20px; border-left: 1px solid #200605; padding-left: 15px; }
     .h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 9px; margin-bottom: 4px; }
-
     @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-
 <div class="player-app">
     <div class="top-bar">
         <span id="station-name">ENTRESIJO RADIO</span>
         <span id="description">CARGANDO SEÑAL...</span>
         <div id="clock">--:--</div>
     </div>
-
     <div id="status-badge">Detectando señal...</div>
-
     <div class="core-ui">
         <div class="play-outer">
             <div id="loading-ring" class="loading-ring"></div>
             <canvas id="vu-canvas" width="170" height="170"></canvas>
             <button id="btn" class="play-btn" disabled>▶</button>
         </div>
-
         <div class="vol-fader">
             <span class="vol-label">VOL</span>
             <input type="range" id="volume" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
             <span class="vol-label">🔊</span>
         </div>
     </div>
-
     <div class="meta-display">
         <span id="artist">ESCUCHANDO AHORA</span>
         <span id="title">Conectando...</span>
     </div>
-
     <div class="history-wrap">
         <button class="history-toggle" onclick="toggleHistory()">Historial +</button>
         <div id="history-content"><div id="history-list"></div></div>
     </div>
 </div>
-
 <audio id="player" crossorigin="anonymous"></audio>
-
 <script>
 const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
 
-const btn = document.getElementById("btn");
-const player = document.getElementById("player");
-const ring = document.getElementById("loading-ring");
-const statusBadge = document.getElementById("status-badge");
-const canvas = document.getElementById("vu-canvas");
-const ctx = canvas.getContext("2d");
+// ─── Referencias DOM ───────────────────────────────────────────
+const btn          = document.getElementById("btn");
+const player       = document.getElementById("player");
+const ring         = document.getElementById("loading-ring");
+const statusBadge  = document.getElementById("status-badge");
+const canvas       = document.getElementById("vu-canvas");
+const ctx          = canvas.getContext("2d");
+const artistEl     = document.getElementById("artist");
+const titleEl      = document.getElementById("title");
+const descriptionEl= document.getElementById("description");
+const historyList  = document.getElementById("history-list");
 
-const artistEl = document.getElementById("artist");
-const titleEl = document.getElementById("title");
-const descriptionEl = document.getElementById("description");
-const historyList = document.getElementById("history-list");
-
-let audioCtx = null;
-let analyser = null;
-let dataArray = null;
-
-let isPlaying = false;
-let isLoading = false;
+// ─── Estado de audio ───────────────────────────────────────────
+let audioCtx    = null;
+let analyser    = null;
+let dataArray   = null;
+let isPlaying   = false;
+let isLoading   = false;
 let animationId = null;
 
-function updateClock() {
-    const now = new Date();
-    document.getElementById("clock").innerText =
-        now.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+// ─── Estado de reconexión ──────────────────────────────────────
+// userWantsToPlay: true cuando el usuario hizo click en play
+// false cuando el usuario hizo click en pause (o nunca tocó nada)
+// La reconexión automática SOLO ocurre si userWantsToPlay === true
+let userWantsToPlay  = false;
+let reconnectTimer   = null;
+let reconnectAttempt = 0;
+const RECONNECT_BASE = 3000;   // 3s inicial
+const RECONNECT_MAX  = 30000;  // techo 30s
+
+// ─── Stall watchdog ────────────────────────────────────────────
+// Si el audio lleva más de STALL_LIMIT ms sin avanzar, lo
+// consideramos colgado y forzamos reconexión.
+const STALL_LIMIT  = 8000;
+let stallTimer     = null;
+let lastTime       = 0;
+
+function startStallWatchdog() {
+    stopStallWatchdog();
+    lastTime = player.currentTime;
+    stallTimer = setInterval(() => {
+        if (!isPlaying) { stopStallWatchdog(); return; }
+        if (player.currentTime === lastTime) {
+            console.warn("[watchdog] stream estancado, reconectando...");
+            handleStreamLost("stall");
+        }
+        lastTime = player.currentTime;
+    }, STALL_LIMIT);
 }
 
+function stopStallWatchdog() {
+    if (stallTimer) { clearInterval(stallTimer); stallTimer = null; }
+}
+
+// ─── Reloj ────────────────────────────────────────────────────
+function updateClock() {
+    document.getElementById("clock").innerText =
+        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 setInterval(updateClock, 1000);
 updateClock();
 
-function setStatus(text, online = false) {
+// ─── Estado visual ─────────────────────────────────────────────
+function setStatus(text, mode = "offline") {
     statusBadge.innerText = text;
-
-    if (online) {
-        statusBadge.classList.add("online");
-    } else {
-        statusBadge.classList.remove("online");
-    }
+    statusBadge.className = "";
+    if (mode === "online")       statusBadge.classList.add("online");
+    if (mode === "reconnecting") statusBadge.classList.add("reconnecting");
 }
 
-function clearVu() {
-    ctx.clearRect(0, 0, 170, 170);
-}
-
+// ─── VU meter ─────────────────────────────────────────────────
+function clearVu() { ctx.clearRect(0, 0, 170, 170); }
 function drawVu() {
-    if (!isPlaying || !analyser) {
-        clearVu();
-        return;
-    }
-
+    if (!isPlaying || !analyser) { clearVu(); return; }
     animationId = requestAnimationFrame(drawVu);
-
     analyser.getByteFrequencyData(dataArray);
-
-    const avg =
-        dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-
+    const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
     const limit = (avg / 255) * Math.PI * 2;
-
     clearVu();
-
     ctx.lineWidth = 4;
     ctx.strokeStyle = "#ff3b30";
-
     ctx.beginPath();
     ctx.arc(85, 85, 70, 0, limit);
     ctx.stroke();
 }
 
+// ─── Audio context ─────────────────────────────────────────────
 async function initAudio() {
     if (audioCtx) return;
-
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 64;
-
     dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-    const source =
-        audioCtx.createMediaElementSource(player);
-
+    const source = audioCtx.createMediaElementSource(player);
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
 }
 
+// ─── Metadata ─────────────────────────────────────────────────
 async function fetchMeta() {
     try {
-        const res = await fetch(
-            `${WORKER}/api/radio-info?t=${Date.now()}`,
-            { cache: "no-store" }
-        );
-
-        if (!res.ok) throw new Error("Metadata fetch failed");
-
+        const res = await fetch(`${WORKER}/api/radio-info?t=${Date.now()}`, { cache: "no-store" });
+        if (!res.ok) throw new Error("meta error");
         const d = await res.json();
 
-        descriptionEl.innerText =
-            d.description || "RADIO ONLINE";
+        descriptionEl.innerText = d.description || "RADIO ONLINE";
 
         if (d.isLive) {
-            setStatus("● EN EL AIRE", true);
-
+            // Si el usuario quería escuchar pero el stream está parado
+            // (por un corte previo), arrancamos la reconexión.
+            if (userWantsToPlay && !isPlaying && !isLoading && !reconnectTimer) {
+                scheduleReconnect();
+            }
+            if (!isPlaying && !isLoading) {
+                setStatus("● EN EL AIRE", "online");
+            }
             btn.disabled = false;
-
-            artistEl.innerText =
-                d.artist === "En vivo"
-                    ? "ESCUCHANDO AHORA"
-                    : d.artist || "DESCONOCIDO";
-
-            titleEl.innerText =
-                d.title || "Sin información";
-
+            artistEl.innerText = d.artist === "En vivo" ? "ESCUCHANDO AHORA" : d.artist || "DESCONOCIDO";
+            titleEl.innerText  = d.title || "Sin información";
             if (Array.isArray(d.history)) {
-                historyList.innerHTML =
-                    d.history.slice(0, 6).map(h => `
-                        <div class="h-item">
-                            <strong>${h.artist || ""}</strong>
-                            ${h.title || ""}
-                        </div>
-                    `).join('');
+                historyList.innerHTML = d.history.slice(0, 6).map(h => `
+                    <div class="h-item">
+                        <strong>${h.artist || ""}</strong>
+                        ${h.title || ""}
+                    </div>
+                `).join('');
             }
-
         } else {
-            setStatus("OFFLINE");
-
-            btn.disabled = true;
-
-            if (isPlaying) {
-                stopPlayer();
+            // Señal offline
+            if (!userWantsToPlay) {
+                setStatus("OFFLINE");
+                btn.disabled = true;
             }
+            // Si el usuario quería escuchar, no tocamos el badge
+            // (ya lo maneja handleStreamLost / scheduleReconnect)
         }
-
     } catch (err) {
-        console.error(err);
-
-        setStatus("SIN CONEXIÓN");
-
-        btn.disabled = true;
+        console.error("[meta]", err);
+        if (!isPlaying) setStatus("SIN CONEXIÓN");
     }
 }
 
-async function startPlayer() {
-    if (isLoading || isPlaying) return;
+// ─── Reconexión con backoff ────────────────────────────────────
+function cancelReconnect() {
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    reconnectAttempt = 0;
+}
 
-    isLoading = true;
+function scheduleReconnect() {
+    if (!userWantsToPlay) return;   // el usuario pausó: no insistir
+    if (reconnectTimer)  return;    // ya hay uno pendiente
 
-    try {
-        btn.disabled = true;
+    const delay = Math.min(RECONNECT_BASE * Math.pow(2, reconnectAttempt), RECONNECT_MAX);
+    reconnectAttempt++;
 
-        btn.innerText = "";
+    const segs = Math.round(delay / 1000);
+    setStatus(`RECONECTANDO ${reconnectAttempt > 1 ? `(${segs}s)` : "..."}`, "reconnecting");
+    ring.style.display = "block";
+    btn.innerText = "";
+    btn.disabled = true;
 
-        ring.style.display = "block";
+    console.log(`[reconexión] intento ${reconnectAttempt} en ${delay}ms`);
 
-        setStatus("SINTONIZANDO...");
+    reconnectTimer = setTimeout(async () => {
+        reconnectTimer = null;
+        if (!userWantsToPlay) return;
+        await startPlayer(true); // true = reconexión silenciosa
+    }, delay);
+}
 
-        await initAudio();
+// ─── Pérdida de stream ─────────────────────────────────────────
+function handleStreamLost(reason) {
+    console.warn("[stream perdido]", reason);
+    stopStallWatchdog();
 
-        if (audioCtx.state === "suspended") {
-            await audioCtx.resume();
-        }
+    // Detener reproducción sin cambiar userWantsToPlay
+    isPlaying = false;
+    player.pause();
+    player.removeAttribute("src");
+    player.load();
+    clearVu();
+    if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
 
-        player.src =
-            `${WORKER}/api/stream?t=${Date.now()}`;
-
-        player.volume =
-            document.getElementById("volume").value;
-
-        await player.play();
-
-        isPlaying = true;
-
-        btn.innerText = "⏸";
-
-        setStatus("● EN EL AIRE", true);
-
-        drawVu();
-
-    } catch (err) {
-        console.error(err);
-
-        stopPlayer();
-
-        setStatus("ERROR DE SEÑAL");
-
-    } finally {
-        isLoading = false;
-
+    if (userWantsToPlay) {
+        scheduleReconnect();
+    } else {
+        btn.innerText = "▶";
         ring.style.display = "none";
-
         btn.disabled = false;
     }
 }
 
-function stopPlayer() {
-    isPlaying = false;
+// ─── Start / Stop ──────────────────────────────────────────────
+async function startPlayer(isReconnect = false) {
+    if (isLoading || isPlaying) return;
+    isLoading = true;
+    cancelReconnect();
 
-    player.pause();
+    try {
+        btn.disabled = true;
+        btn.innerText = "";
+        ring.style.display = "block";
+        if (!isReconnect) setStatus("SINTONIZANDO...");
 
-    player.removeAttribute("src");
+        await initAudio();
+        if (audioCtx.state === "suspended") await audioCtx.resume();
 
-    player.load();
+        player.src = `${WORKER}/api/stream?t=${Date.now()}`;
+        player.volume = document.getElementById("volume").value;
 
-    btn.innerText = "▶";
+        await player.play();
 
-    clearVu();
+        // Éxito
+        isPlaying = true;
+        reconnectAttempt = 0;   // reset backoff
+        btn.innerText = "⏸";
+        setStatus("● EN EL AIRE", "online");
+        startStallWatchdog();
+        drawVu();
 
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
+    } catch (err) {
+        console.error("[start]", err);
+        isPlaying = false;
+        if (userWantsToPlay) {
+            scheduleReconnect();
+        } else {
+            btn.innerText = "▶";
+            setStatus("ERROR DE SEÑAL");
+        }
+    } finally {
+        isLoading = false;
+        ring.style.display = isPlaying ? "none" : ring.style.display;
+        if (isPlaying) { ring.style.display = "none"; btn.disabled = false; }
     }
 }
 
+function stopPlayer() {
+    userWantsToPlay = false;   // el usuario decidió parar
+    cancelReconnect();
+    stopStallWatchdog();
+    isPlaying = false;
+    player.pause();
+    player.removeAttribute("src");
+    player.load();
+    btn.innerText = "▶";
+    btn.disabled = false;
+    ring.style.display = "none";
+    clearVu();
+    if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+    setStatus("● EN EL AIRE", "online");
+}
+
+// ─── Botón play/pause ──────────────────────────────────────────
 btn.addEventListener("click", async () => {
     if (isLoading) return;
-
     if (isPlaying) {
         stopPlayer();
     } else {
+        userWantsToPlay = true;   // el usuario quiere escuchar
         await startPlayer();
     }
 });
 
+// ─── Eventos del elemento audio ────────────────────────────────
+
+// Error definitivo del elemento (404, codec, etc.)
 player.addEventListener("error", () => {
-    stopPlayer();
-    setStatus("ERROR DE STREAM");
+    if (!isLoading) handleStreamLost("error");
 });
 
-document.getElementById("volume")
-    .addEventListener("input", (e) => {
-        player.volume = e.target.value;
-    });
+// Stream terminó inesperadamente (el servidor cerró la conexión)
+player.addEventListener("ended", () => {
+    handleStreamLost("ended");
+});
 
+// Buffering: solo muestra el ring, no reconecta todavía
+// (el watchdog se encarga si tarda demasiado)
+player.addEventListener("waiting", () => {
+    if (isPlaying) ring.style.display = "block";
+});
+player.addEventListener("playing", () => {
+    ring.style.display = "none";
+    startStallWatchdog(); // reinicia el watchdog al volver a sonar
+});
+
+// ─── Volumen ───────────────────────────────────────────────────
+document.getElementById("volume").addEventListener("input", e => {
+    player.volume = e.target.value;
+});
+
+// ─── Historial ─────────────────────────────────────────────────
 function toggleHistory() {
-    const content =
-        document.getElementById("history-content");
-
-    content.style.maxHeight =
-        content.style.maxHeight === "600px"
-            ? "0"
-            : "600px";
+    const content = document.getElementById("history-content");
+    content.style.maxHeight = content.style.maxHeight === "600px" ? "0" : "600px";
 }
 
+// ─── Polling de metadata ───────────────────────────────────────
 setInterval(fetchMeta, 15000);
-
 fetchMeta();
 </script>
-
 </body>
 </html>
