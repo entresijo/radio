@@ -152,105 +152,261 @@
 
 <audio id="player" crossorigin="anonymous"></audio>
 
+    ```html
 <script>
-    const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
-    const btn = document.getElementById("btn");
-    const player = document.getElementById("player");
-    const ring = document.getElementById("loading-ring");
-    const statusBadge = document.getElementById("status-badge");
-    const canvas = document.getElementById("vu-canvas");
-    const ctx = canvas.getContext("2d");
+const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
 
-    let isPlaying = false;
-    let audioCtx, analyser, dataArray;
+const btn = document.getElementById("btn");
+const player = document.getElementById("player");
+const ring = document.getElementById("loading-ring");
+const statusBadge = document.getElementById("status-badge");
+const canvas = document.getElementById("vu-canvas");
+const ctx = canvas.getContext("2d");
 
-    function updateClock() {
-        const now = new Date();
-        document.getElementById("clock").innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+const artistEl = document.getElementById("artist");
+const titleEl = document.getElementById("title");
+const descriptionEl = document.getElementById("description");
+const historyList = document.getElementById("history-list");
+
+let audioCtx = null;
+let analyser = null;
+let dataArray = null;
+
+let isPlaying = false;
+let isLoading = false;
+let animationId = null;
+
+function updateClock() {
+    const now = new Date();
+    document.getElementById("clock").innerText =
+        now.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+}
+
+setInterval(updateClock, 1000);
+updateClock();
+
+function setStatus(text, online = false) {
+    statusBadge.innerText = text;
+
+    if (online) {
+        statusBadge.classList.add("online");
+    } else {
+        statusBadge.classList.remove("online");
     }
-    setInterval(updateClock, 1000); updateClock();
+}
 
-    function drawVu() {
-        if(!isPlaying) { ctx.clearRect(0,0,170,170); return; }
-        requestAnimationFrame(drawVu);
-        analyser.getByteFrequencyData(dataArray);
-        ctx.clearRect(0,0,170,170);
-        ctx.lineWidth = 4; ctx.strokeStyle = "#ff3b30";
-        const avg = dataArray.reduce((a,b) => a+b) / dataArray.length;
-        const limit = (avg / 255) * Math.PI * 2;
-        ctx.beginPath(); ctx.arc(85, 85, 70, 0, limit); ctx.stroke();
+function clearVu() {
+    ctx.clearRect(0, 0, 170, 170);
+}
+
+function drawVu() {
+    if (!isPlaying || !analyser) {
+        clearVu();
+        return;
     }
 
-    async function fetchMeta() {
-        try {
-            const res = await fetch(`${WORKER}/api/radio-info`);
-            const d = await res.json();
-            document.getElementById("description").innerText = d.description || "RADIO ONLINE";
-            if(d.isLive) {
-                statusBadge.innerText = "● EN EL AIRE";
-                statusBadge.classList.add("online");
-                btn.disabled = false;
-                document.getElementById("artist").innerText = (d.artist === "En vivo") ? "ESCUCHANDO AHORA" : d.artist;
-                document.getElementById("title").innerText = d.title;
-                if(d.history) {
-                    document.getElementById("history-list").innerHTML = d.history.slice(0,6).map(h => `
-                        <div class="h-item"><strong>${h.artist}</strong>${h.title}</div>
+    animationId = requestAnimationFrame(drawVu);
+
+    analyser.getByteFrequencyData(dataArray);
+
+    const avg =
+        dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+
+    const limit = (avg / 255) * Math.PI * 2;
+
+    clearVu();
+
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#ff3b30";
+
+    ctx.beginPath();
+    ctx.arc(85, 85, 70, 0, limit);
+    ctx.stroke();
+}
+
+async function initAudio() {
+    if (audioCtx) return;
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    const source =
+        audioCtx.createMediaElementSource(player);
+
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+}
+
+async function fetchMeta() {
+    try {
+        const res = await fetch(
+            `${WORKER}/api/radio-info?t=${Date.now()}`,
+            { cache: "no-store" }
+        );
+
+        if (!res.ok) throw new Error("Metadata fetch failed");
+
+        const d = await res.json();
+
+        descriptionEl.innerText =
+            d.description || "RADIO ONLINE";
+
+        if (d.isLive) {
+            setStatus("● EN EL AIRE", true);
+
+            btn.disabled = false;
+
+            artistEl.innerText =
+                d.artist === "En vivo"
+                    ? "ESCUCHANDO AHORA"
+                    : d.artist || "DESCONOCIDO";
+
+            titleEl.innerText =
+                d.title || "Sin información";
+
+            if (Array.isArray(d.history)) {
+                historyList.innerHTML =
+                    d.history.slice(0, 6).map(h => `
+                        <div class="h-item">
+                            <strong>${h.artist || ""}</strong>
+                            ${h.title || ""}
+                        </div>
                     `).join('');
-                }
-            } else {
-                statusBadge.innerText = "OFFLINE";
-                statusBadge.classList.remove("online");
-                btn.disabled = true;
-            }
-        } catch(e) {}
-    }
-
-    btn.onclick = async () => {
-        if (!isPlaying) {
-            btn.innerText = "";
-            ring.style.display = "block";
-            statusBadge.innerText = "SINTONIZANDO...";
-            
-            if(!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser();
-                const source = audioCtx.createMediaElementSource(player);
-                source.connect(analyser);
-                analyser.connect(audioCtx.destination);
-                analyser.fftSize = 64;
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
             }
 
-            player.src = `${WORKER}/api/stream?t=${Date.now()}`;
-            try {
-                await player.play();
-                isPlaying = true;
-                btn.innerText = "⏸";
-                ring.style.display = "none";
-                statusBadge.innerText = "● EN EL AIRE";
-                drawVu();
-            } catch(e) {
-                isPlaying = false;
-                btn.innerText = "▶";
-                ring.style.display = "none";
-                statusBadge.innerText = "ERROR DE SEÑAL";
-            }
         } else {
-            isPlaying = false;
-            player.pause();
-            player.src = ""; 
-            btn.innerText = "▶";
-            ctx.clearRect(0,0,170,170);
+            setStatus("OFFLINE");
+
+            btn.disabled = true;
+
+            if (isPlaying) {
+                stopPlayer();
+            }
         }
-    };
 
-    function toggleHistory() {
-        const content = document.getElementById("history-content");
-        content.style.maxHeight = content.style.maxHeight === "600px" ? "0" : "600px";
+    } catch (err) {
+        console.error(err);
+
+        setStatus("SIN CONEXIÓN");
+
+        btn.disabled = true;
     }
+}
 
-    document.getElementById("volume").oninput = (e) => { player.volume = e.target.value; };
-    setInterval(fetchMeta, 15000); fetchMeta();
+async function startPlayer() {
+    if (isLoading || isPlaying) return;
+
+    isLoading = true;
+
+    try {
+        btn.disabled = true;
+
+        btn.innerText = "";
+
+        ring.style.display = "block";
+
+        setStatus("SINTONIZANDO...");
+
+        await initAudio();
+
+        if (audioCtx.state === "suspended") {
+            await audioCtx.resume();
+        }
+
+        player.src =
+            `${WORKER}/api/stream?t=${Date.now()}`;
+
+        player.volume =
+            document.getElementById("volume").value;
+
+        await player.play();
+
+        isPlaying = true;
+
+        btn.innerText = "⏸";
+
+        setStatus("● EN EL AIRE", true);
+
+        drawVu();
+
+    } catch (err) {
+        console.error(err);
+
+        stopPlayer();
+
+        setStatus("ERROR DE SEÑAL");
+
+    } finally {
+        isLoading = false;
+
+        ring.style.display = "none";
+
+        btn.disabled = false;
+    }
+}
+
+function stopPlayer() {
+    isPlaying = false;
+
+    player.pause();
+
+    player.removeAttribute("src");
+
+    player.load();
+
+    btn.innerText = "▶";
+
+    clearVu();
+
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
+}
+
+btn.addEventListener("click", async () => {
+    if (isLoading) return;
+
+    if (isPlaying) {
+        stopPlayer();
+    } else {
+        await startPlayer();
+    }
+});
+
+player.addEventListener("error", () => {
+    stopPlayer();
+    setStatus("ERROR DE STREAM");
+});
+
+document.getElementById("volume")
+    .addEventListener("input", (e) => {
+        player.volume = e.target.value;
+    });
+
+function toggleHistory() {
+    const content =
+        document.getElementById("history-content");
+
+    content.style.maxHeight =
+        content.style.maxHeight === "600px"
+            ? "0"
+            : "600px";
+}
+
+setInterval(fetchMeta, 15000);
+
+fetchMeta();
 </script>
+```
+
+
 </body>
 </html>
