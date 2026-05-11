@@ -14,7 +14,6 @@
         --text-dim: #444; 
     }
     * { -webkit-tap-highlight-color: transparent !important; outline: none !important; box-sizing: border-box; }
-    
     body { 
         margin: 0; background: var(--bg); color: var(--text); 
         font-family: 'Inter', sans-serif; display: flex; 
@@ -32,30 +31,18 @@
         text-transform: uppercase; letter-spacing: 4px;
         border: 1px solid #111; color: #222;
     }
-    #status-badge.online { color: var(--primary-bright); border-color: #3d0907; }
+    #status-badge.online       { color: var(--primary-bright); border-color: #3d0907; }
     #status-badge.reconnecting { color: #555; border-color: #222; }
     .core-ui { 
-        position: relative;
-        display: flex; 
-        align-items: center; 
-        justify-content: center;
-        margin-bottom: 60px;
-        width: 100%;
+        position: relative; display: flex; 
+        align-items: center; justify-content: center;
+        margin-bottom: 60px; width: 100%;
     }
-    .play-outer { 
-        position: relative; 
-        width: 120px; 
-        height: 120px; 
-        z-index: 5;
-    }
+    .play-outer { position: relative; width: 120px; height: 120px; z-index: 5; }
     .vol-fader { 
-        position: absolute;
-        right: 10%;
-        display: flex; 
-        flex-direction: column; 
-        align-items: center; 
-        gap: 10px; 
-        width: 40px;
+        position: absolute; right: 10%;
+        display: flex; flex-direction: column; 
+        align-items: center; gap: 10px; width: 40px;
     }
     .loading-ring {
         position: absolute; top: -8px; left: -8px; right: -8px; bottom: -8px;
@@ -98,7 +85,7 @@
 <div class="player-app">
     <div class="top-bar">
         <span id="station-name">ENTRESIJO RADIO</span>
-        <span id="description">CARGANDO SEÑAL...</span>
+        <span id="description">BUSCANDO SEÑAL...</span>
         <div id="clock">--:--</div>
     </div>
     <div id="status-badge">Detectando señal...</div>
@@ -115,8 +102,8 @@
         </div>
     </div>
     <div class="meta-display">
-        <span id="artist">ESCUCHANDO AHORA</span>
-        <span id="title">Conectando...</span>
+        <span id="artist">EN VIVO</span>
+        <span id="title">Buscando señal...</span>
     </div>
     <div class="history-wrap">
         <button class="history-toggle" onclick="toggleHistory()">Historial +</button>
@@ -128,16 +115,16 @@
 const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
 
 // ─── Referencias DOM ───────────────────────────────────────────
-const btn          = document.getElementById("btn");
-const player       = document.getElementById("player");
-const ring         = document.getElementById("loading-ring");
-const statusBadge  = document.getElementById("status-badge");
-const canvas       = document.getElementById("vu-canvas");
-const ctx          = canvas.getContext("2d");
-const artistEl     = document.getElementById("artist");
-const titleEl      = document.getElementById("title");
-const descriptionEl= document.getElementById("description");
-const historyList  = document.getElementById("history-list");
+const btn           = document.getElementById("btn");
+const player        = document.getElementById("player");
+const ring          = document.getElementById("loading-ring");
+const statusBadge   = document.getElementById("status-badge");
+const canvas        = document.getElementById("vu-canvas");
+const ctx           = canvas.getContext("2d");
+const artistEl      = document.getElementById("artist");
+const titleEl       = document.getElementById("title");
+const descriptionEl = document.getElementById("description");
+const historyList   = document.getElementById("history-list");
 
 // ─── Estado de audio ───────────────────────────────────────────
 let audioCtx    = null;
@@ -148,21 +135,58 @@ let isLoading   = false;
 let animationId = null;
 
 // ─── Estado de reconexión ──────────────────────────────────────
-// userWantsToPlay: true cuando el usuario hizo click en play
-// false cuando el usuario hizo click en pause (o nunca tocó nada)
-// La reconexión automática SOLO ocurre si userWantsToPlay === true
 let userWantsToPlay  = false;
 let reconnectTimer   = null;
 let reconnectAttempt = 0;
-const RECONNECT_BASE = 3000;   // 3s inicial
-const RECONNECT_MAX  = 30000;  // techo 30s
+const RECONNECT_BASE = 3000;
+const RECONNECT_MAX  = 30000;
 
 // ─── Stall watchdog ────────────────────────────────────────────
-// Si el audio lleva más de STALL_LIMIT ms sin avanzar, lo
-// consideramos colgado y forzamos reconexión.
-const STALL_LIMIT  = 8000;
-let stallTimer     = null;
-let lastTime       = 0;
+const STALL_LIMIT = 8000;
+let stallTimer    = null;
+let lastTime      = 0;
+
+// ─── Pre-warm ──────────────────────────────────────────────────
+let prewarmed = false;
+
+async function prewarmConnection() {
+    if (prewarmed) return;
+    prewarmed = true;
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 3000);
+    try {
+        await fetch(`${WORKER}/api/stream`, {
+            signal: controller.signal,
+            cache: 'no-store'
+        });
+    } catch (e) {
+        // AbortError esperado, ignorar
+    }
+}
+
+// ─── Pre-init AudioContext en primer gesto ─────────────────────
+// Antes del click de play — reduce latencia al iniciar
+function setupEarlyAudioInit() {
+    const events = ['mousedown', 'touchstart', 'keydown'];
+    const handler = async () => {
+        if (audioCtx) return;
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 64;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            const source = audioCtx.createMediaElementSource(player);
+            source.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            // Suspender inmediatamente — solo lo inicializamos, no reproducimos
+            await audioCtx.suspend();
+        } catch (e) {
+            audioCtx = null; // reset si falla, se reintenta en play
+        }
+        events.forEach(ev => btn.removeEventListener(ev, handler));
+    };
+    events.forEach(ev => btn.addEventListener(ev, handler));
+}
 
 function startStallWatchdog() {
     stopStallWatchdog();
@@ -215,7 +239,11 @@ function drawVu() {
 
 // ─── Audio context ─────────────────────────────────────────────
 async function initAudio() {
-    if (audioCtx) return;
+    if (audioCtx) {
+        // Ya fue pre-inicializado, solo retomar
+        if (audioCtx.state === "suspended") await audioCtx.resume();
+        return;
+    }
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 64;
@@ -232,20 +260,22 @@ async function fetchMeta() {
         if (!res.ok) throw new Error("meta error");
         const d = await res.json();
 
-        descriptionEl.innerText = d.description || "RADIO ONLINE";
+        descriptionEl.innerText = d.description || "RADIO SERRANA";
 
         if (d.isLive) {
-            // Si el usuario quería escuchar pero el stream está parado
-            // (por un corte previo), arrancamos la reconexión.
+            // Pre-warm: calentar conexión al stream en background
+            prewarmConnection();
+
             if (userWantsToPlay && !isPlaying && !isLoading && !reconnectTimer) {
                 scheduleReconnect();
             }
             if (!isPlaying && !isLoading) {
-                setStatus("● EN EL AIRE", "online");
+                setStatus("● AL AIRE", "online");
             }
             btn.disabled = false;
-            artistEl.innerText = d.artist === "En vivo" ? "ESCUCHANDO AHORA" : d.artist || "DESCONOCIDO";
-            titleEl.innerText  = d.title || "Sin información";
+            artistEl.innerText = d.artist === "En vivo" ? "EN VIVO" : d.artist || "EN VIVO";
+            titleEl.innerText  = d.title || "Entresijo Radio";
+
             if (Array.isArray(d.history)) {
                 historyList.innerHTML = d.history.slice(0, 6).map(h => `
                     <div class="h-item">
@@ -255,17 +285,14 @@ async function fetchMeta() {
                 `).join('');
             }
         } else {
-            // Señal offline
             if (!userWantsToPlay) {
-                setStatus("OFFLINE");
+                setStatus("FUERA DEL AIRE");
                 btn.disabled = true;
             }
-            // Si el usuario quería escuchar, no tocamos el badge
-            // (ya lo maneja handleStreamLost / scheduleReconnect)
         }
     } catch (err) {
         console.error("[meta]", err);
-        if (!isPlaying) setStatus("SIN CONEXIÓN");
+        if (!isPlaying) setStatus("SIN SEÑAL");
     }
 }
 
@@ -276,24 +303,22 @@ function cancelReconnect() {
 }
 
 function scheduleReconnect() {
-    if (!userWantsToPlay) return;   // el usuario pausó: no insistir
-    if (reconnectTimer)  return;    // ya hay uno pendiente
+    if (!userWantsToPlay) return;
+    if (reconnectTimer)   return;
 
     const delay = Math.min(RECONNECT_BASE * Math.pow(2, reconnectAttempt), RECONNECT_MAX);
     reconnectAttempt++;
 
     const segs = Math.round(delay / 1000);
-    setStatus(`RECONECTANDO ${reconnectAttempt > 1 ? `(${segs}s)` : "..."}`, "reconnecting");
+    setStatus(`BUSCANDO SEÑAL${reconnectAttempt > 1 ? ` (${segs}s)` : '...'}`, "reconnecting");
     ring.style.display = "block";
     btn.innerText = "";
     btn.disabled = true;
 
-    console.log(`[reconexión] intento ${reconnectAttempt} en ${delay}ms`);
-
     reconnectTimer = setTimeout(async () => {
         reconnectTimer = null;
         if (!userWantsToPlay) return;
-        await startPlayer(true); // true = reconexión silenciosa
+        await startPlayer(true);
     }, delay);
 }
 
@@ -301,8 +326,6 @@ function scheduleReconnect() {
 function handleStreamLost(reason) {
     console.warn("[stream perdido]", reason);
     stopStallWatchdog();
-
-    // Detener reproducción sin cambiar userWantsToPlay
     isPlaying = false;
     player.pause();
     player.removeAttribute("src");
@@ -332,18 +355,16 @@ async function startPlayer(isReconnect = false) {
         if (!isReconnect) setStatus("SINTONIZANDO...");
 
         await initAudio();
-        if (audioCtx.state === "suspended") await audioCtx.resume();
 
         player.src = `${WORKER}/api/stream?t=${Date.now()}`;
         player.volume = document.getElementById("volume").value;
 
         await player.play();
 
-        // Éxito
         isPlaying = true;
-        reconnectAttempt = 0;   // reset backoff
+        reconnectAttempt = 0;
         btn.innerText = "⏸";
-        setStatus("● EN EL AIRE", "online");
+        setStatus("● AL AIRE", "online");
         startStallWatchdog();
         drawVu();
 
@@ -354,17 +375,16 @@ async function startPlayer(isReconnect = false) {
             scheduleReconnect();
         } else {
             btn.innerText = "▶";
-            setStatus("ERROR DE SEÑAL");
+            setStatus("SEÑAL INTERRUMPIDA");
         }
     } finally {
         isLoading = false;
-        ring.style.display = isPlaying ? "none" : ring.style.display;
         if (isPlaying) { ring.style.display = "none"; btn.disabled = false; }
     }
 }
 
 function stopPlayer() {
-    userWantsToPlay = false;   // el usuario decidió parar
+    userWantsToPlay = false;
     cancelReconnect();
     stopStallWatchdog();
     isPlaying = false;
@@ -376,40 +396,33 @@ function stopPlayer() {
     ring.style.display = "none";
     clearVu();
     if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
-    setStatus("● EN EL AIRE", "online");
+    setStatus("● AL AIRE", "online");
 }
 
-// ─── Botón play/pause ──────────────────────────────────────────
+// ─── Botón ─────────────────────────────────────────────────────
 btn.addEventListener("click", async () => {
     if (isLoading) return;
     if (isPlaying) {
         stopPlayer();
     } else {
-        userWantsToPlay = true;   // el usuario quiere escuchar
+        userWantsToPlay = true;
         await startPlayer();
     }
 });
 
 // ─── Eventos del elemento audio ────────────────────────────────
-
-// Error definitivo del elemento (404, codec, etc.)
 player.addEventListener("error", () => {
     if (!isLoading) handleStreamLost("error");
 });
-
-// Stream terminó inesperadamente (el servidor cerró la conexión)
 player.addEventListener("ended", () => {
     handleStreamLost("ended");
 });
-
-// Buffering: solo muestra el ring, no reconecta todavía
-// (el watchdog se encarga si tarda demasiado)
 player.addEventListener("waiting", () => {
     if (isPlaying) ring.style.display = "block";
 });
 player.addEventListener("playing", () => {
     ring.style.display = "none";
-    startStallWatchdog(); // reinicia el watchdog al volver a sonar
+    startStallWatchdog();
 });
 
 // ─── Volumen ───────────────────────────────────────────────────
@@ -423,7 +436,8 @@ function toggleHistory() {
     content.style.maxHeight = content.style.maxHeight === "600px" ? "0" : "600px";
 }
 
-// ─── Polling de metadata ───────────────────────────────────────
+// ─── Init ──────────────────────────────────────────────────────
+setupEarlyAudioInit();
 setInterval(fetchMeta, 15000);
 fetchMeta();
 </script>
