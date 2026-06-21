@@ -449,6 +449,29 @@ function toggleHistory() {
     content.style.maxHeight = content.style.maxHeight === "600px" ? "0" : "600px";
 }
 
+    // ─── Telemetría de Audio para el Monitor ───────────────────────
+setInterval(() => {
+    // Si no está sonando o no hay analyser, no manda nada
+    if (!isPlaying || !analyser) return;
+
+    analyser.getByteFrequencyData(dataArray);
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+    }
+    const avg = sum / dataArray.length;
+    
+    // Si el promedio es mayor a 2, consideramos que hay audio real
+    const audioVivo = avg > 2; 
+
+    // Enviamos el estado al Worker (usando tu URL real)
+    fetch("https://white-mud-e8b6.entresijoradio.workers.dev/api/live-state", {
+        method: "POST",
+        body: JSON.stringify({ audio: audioVivo })
+    }).catch(err => console.warn("Telemetría falló:", err));
+
+}, 3000);
+    
 // ─── Init ──────────────────────────────────────────────────────
 setupEarlyAudioInit();
 setInterval(fetchMeta, 15000);
