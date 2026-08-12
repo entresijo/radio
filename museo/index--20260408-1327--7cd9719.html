@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Entresijo Radio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;800&display=swap" rel="stylesheet">
+   <style>
+    :root { 
+        --primary: #80130f; 
+        --primary-bright: #b31b14; 
+        --bg: #050505; 
+        --text: #e0e0e0; 
+        --text-dim: #444; 
+    }
+
+    * { -webkit-tap-highlight-color: transparent !important; outline: none !important; box-sizing: border-box; }
+    
+    body { 
+        margin: 0; background: var(--bg); color: var(--text); 
+        font-family: 'Inter', sans-serif; display: flex; 
+        justify-content: center; align-items: center; min-height: 100vh;
+        padding: 20px; overflow-x: hidden;
+    }
+
+    .player-app { width: 100%; max-width: 440px; text-align: center; }
+
+    /* Header */
+    .top-bar { margin-bottom: 40px; }
+    #station-name { font-weight: 800; font-size: 13px; letter-spacing: 6px; color: var(--primary-bright); display: block; margin-bottom: 12px; text-transform: uppercase; }
+    #description { font-size: 10px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; display: block; margin-bottom: 8px; }
+    #clock { font-size: 11px; color: #333; }
+
+    /* Badge */
+    #status-badge { 
+        font-size: 12px; font-weight: 800; padding: 12px 30px; 
+        border-radius: 4px; display: inline-block; margin-bottom: 50px;
+        text-transform: uppercase; letter-spacing: 4px;
+        border: 1px solid #111; color: #222;
+    }
+    #status-badge.online { color: var(--primary-bright); border-color: #3d0907; }
+
+    /* CORE UI - El secreto del centrado */
+    .core-ui { 
+        position: relative;
+        display: flex; 
+        align-items: center; 
+        justify-content: center; /* Centra el contenido principal */
+        margin-bottom: 60px;
+        width: 100%;
+    }
+    
+    .play-outer { 
+        position: relative; 
+        width: 120px; 
+        height: 120px; 
+        z-index: 5;
+    }
+
+    /* VOLUMEN - Posicionado a la derecha sin afectar el centro del botón */
+    .vol-fader { 
+        position: absolute;
+        right: 10%; /* Lo pega al borde derecho del contenedor */
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        gap: 10px; 
+        width: 40px;
+    }
+
+    .loading-ring {
+        position: absolute; top: -8px; left: -8px; right: -8px; bottom: -8px;
+        border: 2px solid rgba(128, 19, 15, 0.05);
+        border-top: 2px solid var(--primary-bright);
+        border-radius: 50%; display: none;
+        animation: spin 0.8s linear infinite; z-index: 1;
+    }
+
+    #vu-canvas { position: absolute; top: -25px; left: -25px; z-index: 2; transform: rotate(-90deg); pointer-events: none; }
+
+    .play-btn {
+        position: relative; z-index: 10; width: 100%; height: 100%; 
+        border-radius: 50%; background: #080808; border: 1px solid #1a1a1a;
+        color: var(--primary); font-size: 35px; cursor: pointer; transition: 0.3s;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: inset 0 0 20px rgba(0,0,0,1);
+    }
+    .play-btn:active { transform: scale(0.95); }
+
+    /* Slider Estilizado */
+    .vol-slider {
+        -webkit-appearance: none; width: 120px; height: 2px;
+        background: #111; border-radius: 10px;
+        transform: rotate(-90deg); margin: 50px 0; cursor: pointer;
+    }
+    .vol-slider::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 15px; height: 8px;
+        background: var(--primary); border-radius: 1px;
+    }
+    .vol-label { font-size: 9px; color: #333; font-weight: 800; letter-spacing: 1px; }
+
+    /* Metadata */
+    .meta-display { margin-bottom: 60px; }
+    #artist { display: block; font-size: 13px; font-weight: 700; color: var(--primary-bright); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 15px; }
+    #title { display: block; font-size: 28px; font-weight: 200; line-height: 1.2; color: #fff; }
+
+    /* Historial Noir */
+    .history-wrap { text-align: left; border-top: 1px solid #0d0d0d; padding-top: 30px; }
+    .history-toggle { background: none; border: none; color: #222; font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; }
+    #history-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
+    .h-item { font-size: 13px; margin-top: 20px; border-left: 1px solid #200605; padding-left: 15px; }
+    .h-item strong { color: var(--primary); font-weight: 600; display: block; font-size: 9px; margin-bottom: 4px; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="player-app">
+    <div class="top-bar">
+        <span id="station-name">ENTRESIJO RADIO</span>
+        <span id="description">CARGANDO SEÑAL...</span>
+        <div id="clock">--:--</div>
+    </div>
+
+    <div id="status-badge">Detectando señal...</div>
+
+    <div class="core-ui">
+        <div class="play-outer">
+            <div id="loading-ring" class="loading-ring"></div>
+            <canvas id="vu-canvas" width="170" height="170"></canvas>
+            <button id="btn" class="play-btn" disabled>▶</button>
+        </div>
+
+        <div class="vol-fader">
+            <span class="vol-label">VOL</span>
+            <input type="range" id="volume" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
+            <span class="vol-label">🔊</span>
+        </div>
+    </div>
+
+    <div class="meta-display">
+        <span id="artist">ESCUCHANDO AHORA</span>
+        <span id="title">Conectando...</span>
+    </div>
+
+    <div class="history-wrap">
+        <button class="history-toggle" onclick="toggleHistory()">Historial +</button>
+        <div id="history-content"><div id="history-list"></div></div>
+    </div>
+</div>
+
+<audio id="player" crossorigin="anonymous"></audio>
+
+<script>
+    const WORKER = "https://white-mud-e8b6.entresijoradio.workers.dev";
+    const btn = document.getElementById("btn");
+    const player = document.getElementById("player");
+    const ring = document.getElementById("loading-ring");
+    const statusBadge = document.getElementById("status-badge");
+    const canvas = document.getElementById("vu-canvas");
+    const ctx = canvas.getContext("2d");
+
+    let isPlaying = false;
+    let audioCtx, analyser, dataArray;
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById("clock").innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    function drawVu() {
+        if(!isPlaying) { ctx.clearRect(0,0,170,170); return; }
+        requestAnimationFrame(drawVu);
+        analyser.getByteFrequencyData(dataArray);
+        ctx.clearRect(0,0,170,170);
+        ctx.lineWidth = 4; ctx.strokeStyle = "#ff3b30";
+        const avg = dataArray.reduce((a,b) => a+b) / dataArray.length;
+        const limit = (avg / 255) * Math.PI * 2;
+        ctx.beginPath(); ctx.arc(85, 85, 70, 0, limit); ctx.stroke();
+    }
+
+    async function fetchMeta() {
+        try {
+            const res = await fetch(`${WORKER}/api/radio-info`);
+            const d = await res.json();
+            document.getElementById("description").innerText = d.description || "RADIO ONLINE";
+            if(d.isLive) {
+                statusBadge.innerText = "● EN EL AIRE";
+                statusBadge.classList.add("online");
+                btn.disabled = false;
+                document.getElementById("artist").innerText = (d.artist === "En vivo") ? "ESCUCHANDO AHORA" : d.artist;
+                document.getElementById("title").innerText = d.title;
+                if(d.history) {
+                    document.getElementById("history-list").innerHTML = d.history.slice(0,6).map(h => `
+                        <div class="h-item"><strong>${h.artist}</strong>${h.title}</div>
+                    `).join('');
+                }
+            } else {
+                statusBadge.innerText = "OFFLINE";
+                statusBadge.classList.remove("online");
+                btn.disabled = true;
+            }
+        } catch(e) {}
+    }
+
+    btn.onclick = async () => {
+        if (!isPlaying) {
+            btn.innerText = "";
+            ring.style.display = "block";
+            statusBadge.innerText = "SINTONIZANDO...";
+            
+            if(!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                const source = audioCtx.createMediaElementSource(player);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                analyser.fftSize = 64;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+            }
+
+            player.src = `${WORKER}/api/stream?t=${Date.now()}`;
+            try {
+                await player.play();
+                isPlaying = true;
+                btn.innerText = "⏸";
+                ring.style.display = "none";
+                statusBadge.innerText = "● EN EL AIRE";
+                drawVu();
+            } catch(e) {
+                isPlaying = false;
+                btn.innerText = "▶";
+                ring.style.display = "none";
+                statusBadge.innerText = "ERROR DE SEÑAL";
+            }
+        } else {
+            isPlaying = false;
+            player.pause();
+            player.src = ""; 
+            btn.innerText = "▶";
+            ctx.clearRect(0,0,170,170);
+        }
+    };
+
+    function toggleHistory() {
+        const content = document.getElementById("history-content");
+        content.style.maxHeight = content.style.maxHeight === "600px" ? "0" : "600px";
+    }
+
+    document.getElementById("volume").oninput = (e) => { player.volume = e.target.value; };
+    setInterval(fetchMeta, 15000); fetchMeta();
+</script>
+</body>
+</html>
