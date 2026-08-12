@@ -1131,7 +1131,13 @@ function armarPanel() {
     '<div class="dev-row">' +
       '<button class="dev-btn" data-a="reset">Sacar overrides locales</button>' +
       '<button class="dev-btn cerrar" data-a="off">Volver a lo real</button>' +
-      '<a class="dev-link" href="museo/" target="_blank">Museo de versiones →</a>' +
+      // El museo NO se publica: es material de trabajo (19 versiones históricas
+      // con textos escritos para adentro). Vive sólo en la copia local, así que
+      // el enlace sólo aparece si estamos corriendo desde el disco — publicado
+      // daría 404.
+      (location.protocol === 'file:'
+        ? '<a class="dev-link" href="museo/" target="_blank">Museo de versiones →</a>'
+        : '') +
       '<button class="dev-btn" data-a="cerrar">Cerrar</button>' +
     '</div>';
 
