@@ -1,0 +1,175 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SKINS — index4
+   Separado de index4.html el 12/08 para que DISEÑO y LÓGICA se puedan
+   tocar sin pisarse. El JS vive en index4.html; acá no va una sola línea
+   de comportamiento.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   SKINS HISTÓRICOS — primera pasada, sólo variables.
+
+   Paletas extraídas de los archivos reales en historia/seleccion, no
+   inventadas. No tocan --app-max/--btn-size ni ningún --gap-*: la
+   geometría/ritmo quedan del lado del diseño en pausa, esto es sólo
+   identidad (color, tipografía, efectos) sobre la misma estructura.
+   Se van a retocar cuando se retome el tema diseño.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 13 · index--20260407-1719--5be66d3 · "nace glow-breath" */
+[data-skin="13"] {
+  --primary:        #ff3b30;
+  --primary-bright: #ff3b30;
+  --bg:             #000000;
+  --surface:        #0a0a0a;
+  --border:         #222222;
+  --border-soft:    #1a1a1a;
+  --text:           #ffffff;
+  --text-mid:       #888888;
+  --text-dim:       #555555;
+  --text-faint:     #333333;
+  --badge-radius:   6px;
+  --glow-rgb:       255, 59, 48;
+  --glow-min:       5px;
+  --glow-span:      20px;
+  --glow-a0:        .10;
+  --glow-a1:        .60;
+  --glow-lo:        0 0 5px rgba(255, 59, 48, .10);
+  --glow-hi:        0 0 25px rgba(255, 59, 48, .60);
+  --breath:         2s;
+  /* Nota: el original tenía la barra en degradé verde→amarillo→rojo, un
+     vúmetro de tres colores. La función de la barra acá sólo admite dos
+     tonos (fill/empty); no se fuerza un tercero. Se deja para cuando se
+     retome diseño. */
+  --vol-fill-lo:    #2ecc71;
+  --vol-fill-hi:    #e74c3c;
+  --vol-empty-lo:   #222222;
+  --vol-empty-hi:   #1a1a1a;
+  --vol-thumb:      #ffffff;
+}
+
+/* Consola · index--20260407-1544--96700ed · "estética consola" */
+[data-skin="consola"] {
+  --primary:        #ff3b30;
+  --primary-bright: #ff3b30;
+  --bg:             #000000;
+  --surface:        #0a0a0a;
+  --border:         #222222;
+  --border-soft:    #1a1a1a;
+  --text:           #ffffff;
+  --text-mid:       #999999;
+  --text-dim:       #444444;
+  --text-faint:     #2a2a2a;
+  --app-bg:         var(--surface);
+  --app-radius:     40px;
+  --app-pad:        40px;
+  --app-shadow:     0 50px 100px rgba(0, 0, 0, .9);
+  --glow-rgb:       255, 59, 48;
+  --glow-a0:        .15;
+  --glow-a1:        .50;
+  --badge-shadow:   0 0 30px rgba(255, 59, 48, .15);
+  --vol-fill-lo:    #7a1f18;
+  --vol-fill-hi:    #ff3b30;
+  --vol-empty-lo:   #222222;
+  --vol-empty-hi:   #1a1a1a;
+  --vol-thumb:      #ff3b30;
+}
+
+/* Primigenio · index--20260406-1340--b6470b5 · "la primera de todas",
+   antes de que existiera la identidad visual — de ahí Arial en vez de
+   Inter, y un rojo plano sin las sutilezas que vinieron después. */
+[data-skin="primigenio"] {
+  --font:           Arial, 'Segoe UI', system-ui, sans-serif;
+  --primary:        #ff0000;
+  --primary-bright: #ff0000;
+  --bg:             #000000;
+  --surface:        #0a0a0a;
+  --border:         #1a1a1a;
+  --border-soft:    #1a1a1a;
+  --text:           #ffffff;
+  --text-mid:       #aaaaaa;
+  --text-dim:       #777777;
+  --text-faint:     #444444;
+  /* No "none": --btn-inset se usa dentro de una lista de sombras separadas
+     por coma en .play-btn.sonando, y "none" ahí invalida toda la
+     declaración (no es un <shadow> válido dentro de una lista, sólo como
+     valor único de la propiedad). Una sombra de blur/alfa 0 sí sirve. */
+  --btn-inset:      inset 0 0 0 rgba(0, 0, 0, 0);
+  --breath:         1.5s;
+  --glow-rgb:       255, 0, 0;
+  --glow-min:       0px;
+  --glow-span:      0px;
+  --glow-a0:        0;
+  --glow-a1:        0;
+  --badge-shadow:   none;
+  --glow-lo:        0 0 0 rgba(0, 0, 0, 0);
+  --glow-hi:        0 0 0 rgba(0, 0, 0, 0);
+  --vol-fill-lo:    #b30000;
+  --vol-fill-hi:    #ff0000;
+  --vol-empty-lo:   #222222;
+  --vol-empty-hi:   #333333;
+  --vol-thumb:      #ffffff;
+}
+
+/* Index2 · index2--20260411-1331--bf4c3f2 · rama paralela, tipografía
+   propia (Bebas Neue + DM Mono/Sans). Las tres fuentes se cargan sólo
+   si este skin se elige — ver cargarFuenteSkin() en el JS. */
+[data-skin="index2"] {
+  --font:           'DM Sans', -apple-system, sans-serif;
+  --primary:        #e8362a;
+  --primary-bright: #e8362a;
+  --amber:          #d4882a;
+  --bg:             #080606;
+  --surface:        #120d0d;
+  --border:         #2a2020;
+  --border-soft:    #2a2020;
+  --text:           #ede8e5;
+  --text-mid:       #8a7373;
+  --text-dim:       #5a4848;
+  --text-faint:     #3a2e2e;
+  --vol-fill-lo:    #5a1512;
+  --vol-fill-hi:    #e8362a;
+  --vol-empty-lo:   #2a2020;
+  --vol-empty-hi:   #201818;
+  --vol-thumb:      #e8362a;
+}
+[data-skin="index2"] #station-name {
+  font-family: 'Bebas Neue', sans-serif; font-weight: 400;
+  font-size: 32px; letter-spacing: 6px;
+}
+[data-skin="index2"] #status-badge,
+[data-skin="index2"] #clock { font-family: 'DM Mono', monospace; }
+
+/* Blanco · index--20260407-1930--dbe3586 · un accidente, no un diseño:
+   un <style> duplicado le rompió el parseo al bloque :root de esa
+   versión, y --primary/--bg/--text nunca se definieron. Medido en el
+   navegador: fondo transparente sobre blanco, texto negro, y CUALQUIER
+   color que dependiera de esas variables (badge, botón) se fue a negro
+   también. Esta versión reproduce ese resultado a propósito: monocromo,
+   sin rojo en ningún lado. */
+[data-skin="blanco"] {
+  --primary:        #1a1a1a;
+  --primary-bright: #000000;
+  --amber:          #6b6b6b;
+  --bg:             #ffffff;
+  --surface:        #f4f4f2;
+  --border:         #dddddd;
+  --border-soft:    #e8e8e8;
+  --text:           #111111;
+  --text-mid:       #444444;
+  --text-dim:       #777777;
+  --text-faint:     #aaaaaa;
+  --btn-inset:      inset 0 0 15px rgba(0, 0, 0, .06);
+  --glow-rgb:       0, 0, 0;
+  --glow-min:       0px;
+  --glow-span:      6px;
+  --glow-a0:        0;
+  --glow-a1:        .08;
+  --badge-shadow:   none;
+  --glow-lo:        0 0 0 rgba(0, 0, 0, 0);
+  --glow-hi:        0 0 10px rgba(0, 0, 0, .10);
+  --vol-fill-lo:    #999999;
+  --vol-fill-hi:    #1a1a1a;
+  --vol-empty-lo:   #e0e0e0;
+  --vol-empty-hi:   #ececec;
+  --vol-thumb:      #1a1a1a;
+}
