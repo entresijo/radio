@@ -1,0 +1,548 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SKINS — index5
+   Copia de skins.css el 16/08, cuando index4 se congeló. El JS vive en
+   index5.html; acá no va una sola línea de comportamiento.
+
+   Cada skin lleva la FECHA de la versión que reproduce. No es adorno: el
+   selector la muestra, así elegir una piel es también viajar a una fecha
+   del proyecto. Formato: día abr · hora, más el hash del commit.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   SKINS HISTÓRICOS — primera pasada, sólo variables.
+
+   Paletas extraídas de los archivos reales en historia/seleccion, no
+   inventadas. No tocan --app-max/--btn-size ni ningún --gap-*: la
+   geometría/ritmo quedan del lado del diseño en pausa, esto es sólo
+   identidad (color, tipografía, efectos) sobre la misma estructura.
+   Se van a retocar cuando se retome el tema diseño.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   OJO CON EL ALCANCE DE ESTOS SELECTORES (17/08)
+   Iban escritos `[data-skin="…"]`, que matchea CUALQUIER elemento de la página
+   con ese atributo. Mordió: las marcas del dial llevaban su propio data-skin y
+   cada una se pintaba con la paleta de su piel — grises distintos donde tenía
+   que haber uno solo. Ahora van acotados con `:is(html, #app)`, que son los dos
+   únicos lugares donde el atributo significa "esta es la piel puesta".
+   Se deja html además de #app porque una piel clara necesita llegar al fondo de
+   la PÁGINA, y `body` lee las variables de la raíz.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* La fecha va como variable del skin y no en una tabla del JS: así el dato
+   vive al lado de la piel que describe y no hay dos listas que se
+   desincronicen. El selector la lee con getComputedStyle. */
+
+/* 13 · index--20260407-1719--5be66d3 · "nace glow-breath" */
+:is(html, #app)[data-skin="13"] {
+  --skin-nombre:    "El que respira";
+  --skin-fecha:     "7 abr 2026 · 17:19";
+  --skin-hash:      "5be66d3";
+  --primary:        #ff3b30;
+  --primary-bright: #ff3b30;
+  --bg:             #000000;
+  --surface:        #0a0a0a;
+  --border:         #222222;
+  --border-soft:    #1a1a1a;
+  --text:           #ffffff;
+  --text-mid:       #888888;
+  --text-dim:       #555555;
+  --text-faint:     #333333;
+  --badge-radius:   6px;
+  --glow-rgb:       255, 59, 48;
+  --glow-min:       5px;
+  --glow-span:      20px;
+  --glow-a0:        .10;
+  --glow-a1:        .60;
+  --glow-lo:        0 0 5px rgba(255, 59, 48, .10);
+  --glow-hi:        0 0 25px rgba(255, 59, 48, .60);
+  --breath:         2s;
+  /* Nota: el original tenía la barra en degradé verde→amarillo→rojo, un
+     vúmetro de tres colores. La función de la barra acá sólo admite dos
+     tonos (fill/empty); no se fuerza un tercero. Se deja para cuando se
+     retome diseño. */
+  --vol-fill-lo:    #2ecc71;
+  --vol-fill-hi:    #e74c3c;
+  --vol-empty-lo:   #222222;
+  --vol-empty-hi:   #1a1a1a;
+  --vol-thumb:      #ffffff;
+}
+
+/* Consola · index--20260407-1544--96700ed · "estética consola" */
+:is(html, #app)[data-skin="consola"] {
+  --skin-nombre:    "El aparato";
+  --skin-fecha:     "7 abr 2026 · 15:44";
+  --skin-hash:      "96700ed";
+  --primary:        #ff3b30;
+  --primary-bright: #ff3b30;
+  --bg:             #000000;
+  --surface:        #0a0a0a;
+  --border:         #222222;
+  --border-soft:    #1a1a1a;
+  --text:           #ffffff;
+  --text-mid:       #999999;
+  --text-dim:       #444444;
+  --text-faint:     #2a2a2a;
+  --app-bg:         var(--surface);
+  --app-radius:     40px;
+  --app-pad:        40px;
+  /* --app-pad-v acotado el 17/08: el relleno lateral es de donde sale la
+     sensacion de tarjeta y se queda entero, pero el vertical cuenta DOS
+     veces contra el alto de pantalla y hacia que la composicion se corriera
+     al pasar el dial por esta piel. Ver .player-app en estilos5.css. */
+  --app-pad-v:      14px;
+  --app-shadow:     0 50px 100px rgba(0, 0, 0, .9);
+  --glow-rgb:       255, 59, 48;
+  --glow-a0:        .15;
+  --glow-a1:        .50;
+  --badge-shadow:   0 0 30px rgba(255, 59, 48, .15);
+  --vol-fill-lo:    #7a1f18;
+  --vol-fill-hi:    #ff3b30;
+  --vol-empty-lo:   #222222;
+  --vol-empty-hi:   #1a1a1a;
+  --vol-thumb:      #ff3b30;
+}
+
+/* Primigenio · index--20260406-1340--b6470b5 · "la primera de todas",
+   antes de que existiera la identidad visual — de ahí Arial en vez de
+   Inter, y un rojo plano sin las sutilezas que vinieron después. */
+:is(html, #app)[data-skin="primigenio"] {
+  --skin-nombre:    "La primera de todas";
+  --skin-fecha:     "6 abr 2026 · 13:40";
+  --skin-hash:      "b6470b5";
+  --badge-radius:   20px;   /* era una pastilla, no un recuadro */
+  --font:           Arial, 'Segoe UI', system-ui, sans-serif;
+  --primary:        #ff0000;
+  --primary-bright: #ff0000;
+  --bg:             #000000;
+  --surface:        #0a0a0a;
+  --border:         #1a1a1a;
+  --border-soft:    #1a1a1a;
+  --text:           #ffffff;
+  --text-mid:       #aaaaaa;
+  --text-dim:       #777777;
+  --text-faint:     #444444;
+  /* No "none": --btn-inset se usa dentro de una lista de sombras separadas
+     por coma en .play-btn.sonando, y "none" ahí invalida toda la
+     declaración (no es un <shadow> válido dentro de una lista, sólo como
+     valor único de la propiedad). Una sombra de blur/alfa 0 sí sirve. */
+  --btn-inset:      inset 0 0 0 rgba(0, 0, 0, 0);
+  --breath:         1.5s;
+  --glow-rgb:       255, 0, 0;
+  --glow-min:       0px;
+  --glow-span:      0px;
+  --glow-a0:        0;
+  --glow-a1:        0;
+  --badge-shadow:   none;
+  --glow-lo:        0 0 0 rgba(0, 0, 0, 0);
+  --glow-hi:        0 0 0 rgba(0, 0, 0, 0);
+  --vol-fill-lo:    #b30000;
+  --vol-fill-hi:    #ff0000;
+  --vol-empty-lo:   #222222;
+  --vol-empty-hi:   #333333;
+  --vol-thumb:      #ffffff;
+}
+/* Lo que faltaba de la primera versión y no se puede decir con variables.
+   Medido en el archivo original, no inventado:
+   `.play-btn { background: red; color: white }` — un círculo ROJO LLENO con el
+   triángulo blanco, al revés que hoy (círculo oscuro, triángulo rojo). Y el
+   cartel de aire era una pastilla que PARPADEA (`blink 1.5s`), no un letrero
+   que respira. Eso es la mitad del carácter de esa versión. */
+:is(html, #app)[data-skin="primigenio"] .play-btn {
+  background: #ff0000; color: #ffffff; border: none; box-shadow: none;
+}
+:is(html, #app)[data-skin="primigenio"] .play-btn.sonando { box-shadow: none; border: none; }
+:is(html, #app)[data-skin="primigenio"] #status-badge {
+  padding: 6px 14px; font-size: 13px; font-weight: 400;
+  letter-spacing: 0; border-width: 1px;
+}
+:is(html, #app)[data-skin="primigenio"] #status-badge.aire {
+  animation: parpadeo 1.5s step-end infinite;
+  box-shadow: none;
+}
+@keyframes parpadeo { 0%, 49% { opacity: 1 } 50%, 100% { opacity: .25 } }
+/* Antes de que existiera la identidad visual no había interletrado en ningún
+   lado: el tratamiento de etiqueta llegó después. */
+:is(html, #app)[data-skin="primigenio"] #station-name,
+:is(html, #app)[data-skin="primigenio"] #description,
+:is(html, #app)[data-skin="primigenio"] #artist,
+:is(html, #app)[data-skin="primigenio"] .history-toggle,
+:is(html, #app)[data-skin="primigenio"] .ws-btn { letter-spacing: 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Tarjeta · index--20260407-1412--4304267 · el segundo día
+   La primera con variables propias. Aparece la TARJETA gris sobre el
+   fondo, el botón rojo lleno de 100 px que late, y un detalle que no
+   volvió nunca más: el ON AIR era VERDE (#00c853).
+   El original tenía 30 px de relleno en la tarjeta; acá van 20 porque
+   60 px de alto extra rompen el presupuesto de pantalla.
+   ═══════════════════════════════════════════════════════════════ */
+:is(html, #app)[data-skin="tarjeta"] {
+  --skin-nombre:    "La tarjeta verde";
+  --skin-fecha:     "7 abr 2026 · 14:12";
+  --skin-hash:      "4304267";
+  --primary:        #ff3b30;
+  --primary-bright: #ff3b30;
+  --bg:             #0a0a0a;
+  --surface:        #1a1a1a;
+  --border:         #2a2a2a;
+  --border-soft:    #2a2a2a;
+  --text:           #ffffff;
+  --text-mid:       #a0a0a0;
+  --text-dim:       #a0a0a0;
+  --text-faint:     #4a4a4a;
+  --app-bg:         #1a1a1a;
+  --app-radius:     24px;
+  --app-pad:        20px;
+  /* --app-pad-v acotado el 17/08: el relleno lateral es de donde sale la
+     sensacion de tarjeta y se queda entero, pero el vertical cuenta DOS
+     veces contra el alto de pantalla y hacia que la composicion se corriera
+     al pasar el dial por esta piel. Ver .player-app en estilos5.css. */
+  --app-pad-v:      10px;
+  --app-shadow:     0 20px 40px rgba(0, 0, 0, .4);
+  --badge-radius:   20px;
+  --glow-rgb:       255, 59, 48;
+  --glow-min:       10px;
+  --glow-span:      25px;
+  --glow-a0:        .30;
+  --glow-a1:        .40;
+  --btn-inset:      inset 0 0 0 rgba(0, 0, 0, 0);
+  --badge-shadow:   none;
+  --breath:         2s;
+  --vol-fill-lo:    #7a1f18;
+  --vol-fill-hi:    #ff3b30;
+  --vol-empty-lo:   #2a2a2a;
+  --vol-empty-hi:   #222222;
+  --vol-thumb:      #ffffff;
+}
+:is(html, #app)[data-skin="tarjeta"] .play-btn {
+  background: #ff3b30; color: #ffffff; border: none;
+  box-shadow: 0 10px 25px rgba(255, 59, 48, .3);
+}
+/* El verde del aire: el único de toda la historia del proyecto. */
+:is(html, #app)[data-skin="tarjeta"] #status-badge.aire {
+  color: #00c853; border-color: rgba(0, 200, 83, .35);
+  background: rgba(0, 200, 83, .06); box-shadow: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Brillo · index--20260407-1701--3e17947 · el pico de efectos
+   El momento de más brillo de toda la historia: dos animaciones a la
+   vez y cuatro sombras. Negro puro de fondo y el rojo encendido.
+   ═══════════════════════════════════════════════════════════════ */
+:is(html, #app)[data-skin="brillo"] {
+  --skin-nombre:    "El pico de brillo";
+  --skin-fecha:     "7 abr 2026 · 17:01";
+  --skin-hash:      "3e17947";
+  --primary:        #ff3b30;
+  --primary-bright: #ff3b30;
+  --bg:             #000000;
+  --surface:        #111111;
+  --border:         #222222;
+  --border-soft:    #1c1c1c;
+  --text:           #ffffff;
+  --text-mid:       #888888;
+  --text-dim:       #555555;
+  --text-faint:     #2e2e2e;
+  --glow-rgb:       255, 59, 48;
+  --glow-min:       14px;
+  --glow-span:      34px;   /* hasta 48: es el más encendido de todos */
+  --glow-a0:        .22;
+  --glow-a1:        .55;
+  --badge-shadow:   0 0 34px rgba(255, 59, 48, .22);
+  --glow-lo:        0 0 8px rgba(255, 59, 48, .18);
+  --glow-hi:        0 0 34px rgba(255, 59, 48, .65);
+  --breath:         2s;
+  --vol-fill-lo:    #7a1f18;
+  --vol-fill-hi:    #ff3b30;
+  --vol-empty-lo:   #222222;
+  --vol-empty-hi:   #1a1a1a;
+  --vol-thumb:      #ff3b30;
+}
+:is(html, #app)[data-skin="brillo"] .play-btn { background: #111111; border-color: #222222; color: #ffffff; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Index3 · index--20260408-1155--30d2429 · el fin de la rama
+   Última de la línea original, congelada como index3.html. Es donde el
+   rojo sangre ya mandaba pero el texto todavía era blanco puro, no el
+   #e0e0e0 de hoy. Tarjeta de radio 40 y el badge respirando a 3s.
+   ═══════════════════════════════════════════════════════════════ */
+:is(html, #app)[data-skin="index3"] {
+  --skin-nombre:    "El fin de la rama";
+  --skin-fecha:     "8 abr 2026 · 11:55";
+  --skin-hash:      "30d2429";
+  --primary:        #80130f;
+  --primary-bright: #80130f;
+  --bg:             #050505;
+  --surface:        #111111;
+  --border:         #222222;
+  --border-soft:    #1e1e1e;
+  --text:           #ffffff;
+  --text-mid:       #777777;
+  --text-dim:       #555555;
+  --text-faint:     #2a2a2a;
+  --app-bg:         #0c0c0c;
+  --app-radius:     40px;
+  --app-pad:        20px;
+  /* --app-pad-v acotado el 17/08: el relleno lateral es de donde sale la
+     sensacion de tarjeta y se queda entero, pero el vertical cuenta DOS
+     veces contra el alto de pantalla y hacia que la composicion se corriera
+     al pasar el dial por esta piel. Ver .player-app en estilos5.css. */
+  --app-pad-v:      10px;
+  --app-shadow:     0 30px 60px rgba(0, 0, 0, .5);
+  --breath:         3s;
+  --glow-rgb:       128, 19, 15;
+  --glow-min:       10px;
+  --glow-span:      22px;
+  --glow-a0:        .18;
+  --glow-a1:        .45;
+  --vol-fill-lo:    #3a0c0a;
+  --vol-fill-hi:    #80130f;
+  --vol-empty-lo:   #222222;
+  --vol-empty-hi:   #1a1a1a;
+  --vol-thumb:      #80130f;
+}
+:is(html, #app)[data-skin="index3"] .play-btn { background: #111111; border-color: #222222; color: #ffffff; }
+
+/* Index2 · index2--20260411-1331--bf4c3f2 · rama paralela, tipografía
+   propia (Bebas Neue + DM Mono/Sans). Las tres fuentes se cargan sólo
+   si este skin se elige — ver cargarFuenteSkin() en el JS. */
+:is(html, #app)[data-skin="index2"] {
+  --skin-nombre:    "La rama paralela";
+  --skin-fecha:     "11 abr 2026 · 13:31";
+  --skin-hash:      "bf4c3f2";
+  --font:           'DM Sans', -apple-system, sans-serif;
+  --primary:        #e8362a;
+  --primary-bright: #e8362a;
+  --amber:          #d4882a;
+  --bg:             #080606;
+  --surface:        #120d0d;
+  --border:         #2a2020;
+  --border-soft:    #2a2020;
+  --text:           #ede8e5;
+  --text-mid:       #8a7373;
+  --text-dim:       #5a4848;
+  --text-faint:     #3a2e2e;
+  --vol-fill-lo:    #5a1512;
+  --vol-fill-hi:    #e8362a;
+  --vol-empty-lo:   #2a2020;
+  --vol-empty-hi:   #201818;
+  --vol-thumb:      #e8362a;
+}
+/* CORREGIDO 16/08 — el reclamo era justo. En el original ese Bebas de 32 px
+   decía **ENTRESIJO** a secas, y "Radio Serrana" iba abajo, en DM Sans y sin
+   mayúsculas. Acá el marcado dice "ENTRESIJO RADIO": la misma regla aplicada al
+   texto largo daba un cartelón que esa versión nunca tuvo. Baja a 24 px, que es
+   donde vuelve a leerse como logotipo y no como titular. Verificado contra
+   index2--20260411-1331--bf4c3f2.html, no de memoria. */
+:is(html, #app)[data-skin="index2"] #station-name {
+  font-family: 'Bebas Neue', sans-serif; font-weight: 400;
+  font-size: 24px; letter-spacing: 5px;
+}
+/* La bajada iba en caja normal, no en versalitas tracked como el resto. */
+:is(html, #app)[data-skin="index2"] #description {
+  text-transform: none; letter-spacing: 1px; font-size: 12px;
+}
+:is(html, #app)[data-skin="index2"] #status-badge,
+:is(html, #app)[data-skin="index2"] #clock { font-family: 'DM Mono', monospace; }
+
+/* ═══════════════════════════════════════════════════════════════
+   La primera noche · index--20260406-2039--a33742d · 6 abr, 20:39
+   NO estaba en la selección de 19: el museo saltó de las 13:40 a la
+   mañana siguiente. Es la más primitiva que sobrevive con carácter
+   propio, y la única con el nombre en emoji.
+
+   Tres cosas que sólo existieron esa noche:
+     · el título era `<h1>🎵 Entresijo</h1>` — con el emoji adentro
+     · el círculo era ROJO LLENO con el triángulo blanco
+     · y la pastilla de estado era **VERDE cuando estaba FUERA del aire**
+       (`.onair.off { background:#00c853; color:black }`), al revés de lo
+       que uno esperaría. Cuando entraba al aire se ponía roja.
+   Medido en el archivo, no recordado.
+   ═══════════════════════════════════════════════════════════════ */
+:is(html, #app)[data-skin="primera-noche"] {
+  --skin-nombre:    "La primera noche";
+  --skin-fecha:     "6 abr 2026 · 20:39";
+  --skin-hash:      "a33742d";
+  --font:           Arial, 'Segoe UI', system-ui, sans-serif;
+  --primary:        #ff0000;
+  --primary-bright: #ff0000;
+  --bg:             #000000;
+  --surface:        #000000;
+  --border:         #333333;
+  --border-soft:    #222222;
+  --text:           #ffffff;
+  --text-mid:       #cccccc;
+  --text-dim:       #b3b3b3;   /* era opacity .7 sobre blanco */
+  --text-faint:     #555555;
+  --badge-radius:   20px;
+  --btn-inset:      inset 0 0 0 rgba(0, 0, 0, 0);
+  --badge-shadow:   none;
+  --glow-min:       0px;
+  --glow-span:      0px;
+  --glow-a0:        0;
+  --glow-a1:        0;
+  --glow-lo:        0 0 0 rgba(0, 0, 0, 0);
+  --glow-hi:        0 0 0 rgba(0, 0, 0, 0);
+  --vol-fill-lo:    #ff0000;
+  --vol-fill-hi:    #ff0000;
+  --vol-empty-lo:   #333333;
+  --vol-empty-hi:   #333333;
+  --vol-thumb:      #ffffff;
+}
+:is(html, #app)[data-skin="primera-noche"] #station-name {
+  font-size: 30px; font-weight: 700; letter-spacing: 0;
+  color: #ffffff; text-transform: none;
+}
+/* El emoji del título. Es la marca de esa noche. */
+:is(html, #app)[data-skin="primera-noche"] #station-name::before { content: '🎵 '; }
+:is(html, #app)[data-skin="primera-noche"] #description { letter-spacing: 0; text-transform: none; }
+:is(html, #app)[data-skin="primera-noche"] .play-btn {
+  background: #ff0000; color: #ffffff; border: none; box-shadow: none;
+}
+:is(html, #app)[data-skin="primera-noche"] .play-btn.sonando { box-shadow: none; border: none; }
+/* Pastilla llena. Verde afuera del aire, roja adentro — así era. */
+:is(html, #app)[data-skin="primera-noche"] #status-badge {
+  padding: 6px 14px; font-size: 13px; font-weight: 400; letter-spacing: 0;
+  text-transform: none; border: none;
+  background: #00c853; color: #000000;
+}
+:is(html, #app)[data-skin="primera-noche"] #status-badge.aire {
+  background: #ff0000; color: #ffffff; animation: none; box-shadow: none; opacity: 1;
+}
+:is(html, #app)[data-skin="primera-noche"] #status-badge.conectando { background: #00c853; color: #000000; }
+
+/* ═══════════════════════════════════════════════════════════════
+   El que está al aire · radio/index.html · producción
+   Faltaba, y es el que más gente vio: es el reproductor que suena hoy
+   en entresijo.org. Se distingue de la piel base en cosas concretas:
+   el cartel NO respira ni tiene glow, el volumen es un hilo de 2 px con
+   el cabezal rectangular, y el título del tema es blanco puro.
+   ═══════════════════════════════════════════════════════════════ */
+:is(html, #app)[data-skin="alaire"] {
+  --skin-nombre:    "El que está al aire";
+  --skin-fecha:     "en producción, hoy";
+  --skin-hash:      "7cd9719";
+  --primary:        #80130f;
+  --primary-bright: #b31b14;
+  --bg:             #050505;
+  --surface:        #080808;
+  --border:         #111111;
+  --border-soft:    #151515;
+  --text:           #e0e0e0;
+  --text-mid:       #666666;
+  --text-dim:       #444444;
+  --text-faint:     #222222;
+  --badge-shadow:   none;
+  --breath:         0s;      /* no respiraba: eso se perdió y volvió en index4 */
+  --glow-min:       0px;
+  --glow-span:      0px;
+  --glow-a0:        0;
+  --glow-a1:        0;
+  --glow-lo:        0 0 0 rgba(0, 0, 0, 0);
+  --glow-hi:        0 0 0 rgba(0, 0, 0, 0);
+  --vol-w:          2px;     /* un hilo: así era el fader viejo */
+  --vol-thumb-w:    15px;
+  --vol-thumb-h:    8px;
+  --vol-fill-lo:    #80130f;
+  --vol-fill-hi:    #80130f;
+  --vol-empty-lo:   #111111;
+  --vol-empty-hi:   #111111;
+  --vol-thumb:      #80130f;
+}
+:is(html, #app)[data-skin="alaire"] #status-badge.aire { animation: none; box-shadow: none; opacity: 1; }
+:is(html, #app)[data-skin="alaire"] .play-btn { border-color: #1a1a1a; }
+:is(html, #app)[data-skin="alaire"] .play-btn.sonando { box-shadow: var(--btn-inset); border-color: #1a1a1a; }
+/* El cabezal era un rectangulito, no una cápsula. */
+:is(html, #app)[data-skin="alaire"] .vol-slider::-webkit-slider-thumb { border-radius: 1px; }
+:is(html, #app)[data-skin="alaire"] .vol-slider::-moz-range-thumb     { border-radius: 1px; }
+:is(html, #app)[data-skin="alaire"] #title { color: #ffffff; }
+/* El historial llevaba acento a la izquierda. Se sacó de la base porque con el
+   bloque centrado pelea con la composición; acá se respeta el original. */
+:is(html, #app)[data-skin="alaire"] .h-item {
+  border-left: 1px solid #200605; padding-left: 15px; text-align: left;
+}
+
+/* Blanco · index--20260407-1930--dbe3586 · un accidente, no un diseño:
+   un <style> duplicado le rompió el parseo al bloque :root de esa
+   versión, y --primary/--bg/--text nunca se definieron. Medido en el
+   navegador: fondo transparente sobre blanco, texto negro, y CUALQUIER
+   color que dependiera de esas variables (badge, botón) se fue a negro
+   también. Esta versión reproduce ese resultado a propósito: monocromo,
+   sin rojo en ningún lado. */
+:is(html, #app)[data-skin="blanco"] {
+  --skin-nombre:    "El accidente";
+  --skin-fecha:     "7 abr 2026 · 19:30";
+  --skin-hash:      "dbe3586";
+  --primary:        #1a1a1a;
+  --primary-bright: #000000;
+  --amber:          #6b6b6b;
+  --bg:             #ffffff;
+  --surface:        #f4f4f2;
+  --border:         #dddddd;
+  --border-soft:    #e8e8e8;
+  --text:           #111111;
+  --text-mid:       #444444;
+  --text-dim:       #777777;
+  --text-faint:     #aaaaaa;
+  --btn-inset:      inset 0 0 15px rgba(0, 0, 0, .06);
+  --glow-rgb:       0, 0, 0;
+  --glow-min:       0px;
+  --glow-span:      6px;
+  --glow-a0:        0;
+  --glow-a1:        .08;
+  --badge-shadow:   none;
+  --glow-lo:        0 0 0 rgba(0, 0, 0, 0);
+  --glow-hi:        0 0 10px rgba(0, 0, 0, .10);
+  --vol-fill-lo:    #999999;
+  --vol-fill-hi:    #1a1a1a;
+  --vol-empty-lo:   #e0e0e0;
+  --vol-empty-hi:   #ececec;
+  --vol-thumb:      #1a1a1a;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LAS PIELES DE PANTALLA — lo poco que no se puede decir con variables
+
+   Van sobre `[data-fantasma]`, la marca que pone `aplicarPiel()` para las
+   pieles FIJAS del easter egg. No sobre `data-skin`: ése se saca a propósito
+   cuando entra una piel sorteada, porque si quedara puesto el de la última
+   parada las once pieles históricas pisarían a la que acaba de salir.
+
+   ⚠️ TODO ACÁ ES `box-shadow`, NUNCA `border` NI `padding`. Un borde o un
+   relleno propios agrandan la composición —la primera versión de esto sumaba
+   36 px de alto— y la composición ya desborda 21 px con el contador de
+   oyentes prendido. Además `tomarAncla()` mide la cabecera para que el botón
+   no salte al cambiar de piel: cualquier regla que cambie el alto de algo
+   que esa función mide le envenena la referencia. `box-shadow` se dibuja
+   afuera del flujo y no ocupa lugar, así que el marco aparece sin mover una
+   sola cosa de sitio.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* EL PANEL CON SOMBRA DURA, que es lo que hace la cita del instalador: sin
+   desenfoque y desplazada en las dos direcciones, como la dibujaba una EGA. */
+#app[data-fantasma="apogee"] {
+  box-shadow: 12px 12px 0 #000000;
+}
+/* ⚠️ ACÁ HUBO DOS RECUADROS —uno en el cartel y otro en el botón— Y SE
+   SACARON: no estaban pedidos, y es la segunda vez que aparecen rectángulos
+   que nadie pidió (la primera fue el marco del reproductor, 18/08).
+   Las dos referencias que se dieron —el retrato ascii y la pantalla del
+   instalador— tienen recuadros, pero eso NO autoriza a ponerlos en el botón
+   de play: en las dos referencias lo que está recuadrado es texto, no el
+   control principal. Y encima el botón dejó de funcionar en el teléfono con
+   el recuadro puesto, así que aunque la causa resulte ser otra, no vale la
+   pena sostener algo que no se pidió y que está bajo sospecha.
+   Lo que queda de estas pieles es lo que sí se pidió: la paleta, la
+   monoespaciada y las esquinas cuadradas, todo por variables. */
+
+/* ⚠️ ACÁ SE APAGABA EL VÚMETRO EN LAS DOS PIELES, Y SE REPUSO.
+   El argumento era estético —una circunferencia suave no es de una pantalla
+   de DOS— pero nadie lo pidió, y el vúmetro es la única cosa de la
+   composición que muestra que hay audio pasando. Sacarlo es sacar
+   información, no adorno. Reportado: "el glow que acompañaba al eq se
+   perdió, ¿fue decisión? yo no la tomé".
+   Si en algún momento se quiere una versión de bloques para estas pieles,
+   el camino está abierto desde que el JS LEE su color del CSS en vez de
+   elegirlo (ver leerColoresVu en index5.html) — pero eso es dibujar otra
+   cosa, no esconder ésta. */
