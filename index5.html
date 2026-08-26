@@ -4557,28 +4557,45 @@ $('station-name').addEventListener('click', () => {
 })();
 
 /* ═════════════════════════════════════════════════════════════════
-   LA PÁGINA NO SE DESPLAZA VERTICALMENTE (19/08)
+   LA PÁGINA NO SE DESPLAZA VERTICALMENTE — bloqueo duro (26/08)
 
-   Nunca estuvo implementado: se comparó `estilos5.css` contra la foto del
-   inicio de sesión y no hay ni hubo regla que lo bloquee. Lo que sí está es
-   `overscroll-behavior-y: none`, que mata el pull-to-refresh de Android y
-   nada más — de ahí venía la impresión de que estaba resuelto.
+   Historia: primero fue sólo `overscroll-behavior-y: none` en el CSS (mata
+   el pull-to-refresh de Android y nada más). Después se agregó el
+   preventDefault de touchmove de acá abajo. NINGUNO de los dos clavaba de
+   verdad el scroll, y se seguía dando: el handler SE ABRE para el gesto
+   nacido en `.dial-tira`/`.vol-slider`, y como el dial lleva
+   `touch-action: pan-x`, un arrastre vertical empezado sobre el dial se le
+   escapaba a la página y la desplazaba. Tampoco frenaban el scroll inercial
+   ni el programático. Medido en 411×771 (el teléfono del usuario, contador
+   de oyentes prendido): la página llegaba a scrollTop 29.
 
-   ⚠️ ESTO ESCONDE UN DESBORDE, NO LO ARREGLA. Medido en 411 × 771, que es el
-   teléfono del usuario: la composición mide **29 px más que la pantalla** con
-   el contador de oyentes prendido, y eso es de diseño, no de lógica. Lo que
-   queda fuera de cuadro es el final del dial. Bloquear el desplazamiento hace
-   que no se pueda ir a buscarlo; que entre es otra decisión, y es de la otra
-   sesión (ver el pendiente en ARRANQUE-LOGICA).
+   El candado de verdad es `overflow-y: hidden`, y hay que ponerlo en LOS DOS,
+   <html> Y <body>. Medido: con <html> solo, la página (el scroller del
+   viewport) queda clavada, pero el desborde de 29 px SE MUDA al body —el body
+   tiene `overflow-x: hidden` y overflow-y `auto`, así que se vuelve un scroller
+   propio y el gesto lo desplaza igual—. Con los dos en `hidden` no queda ningún
+   scroller de página; el `overflow-x: auto` del `.dial-tira` es otro elemento y
+   sigue andando, igual que el del historial.
 
-   Va en JS y no en CSS a propósito: `overflow: hidden` en el body cambia la
-   maquetación y `position: fixed` reintroduce justo la clase de problema de
+   Ojo con la advertencia vieja: la doc decía que `overflow: hidden` en el body
+   "cambia la maquetación". Medido acá, NO: `#app` queda en top 64 con o sin el
+   candado en el body (el body es flex con centrado y padding, y hidden no lo
+   corre). Se prefirió esto a `position: fixed`, que reintroduce el problema de
    CRITERIOS-DISENO §4.7 —atar la posición a un alto que el navegador no
-   garantiza—. Cancelar el gesto es más chico y no toca la composición.
+   garantiza—. Va en JS (no en el CSS) porque en esta sesión no se toca la hoja.
 
-   Y NO cancela todo: el historial abierto tiene su propio desplazamiento
-   vertical y el dial el horizontal. Sólo se frena el gesto que llegó hasta el
-   documento sin que nadie lo quisiera. */
+   ⚠️ ESTO ESCONDE UN DESBORDE, NO LO ARREGLA. Los 29 px que sobran son
+   composición: el final del dial queda fuera de cuadro y ahora inalcanzable.
+   Que la composición ENTRE es de diseño, no de lógica (pendiente en
+   ARRANQUE-DISENO). El bloqueo duro se eligió a sabiendas de ese costo. */
+document.documentElement.style.overflowY = 'hidden';
+document.body.style.overflowY = 'hidden';
+
+/* El preventDefault de touchmove QUEDA, aunque el candado de <html> ya alcanza
+   para el scroll: es la línea base del pendiente del volumen (la hipótesis de
+   que este handler mata el gesto del fader si el dedo cae al lado de la barra
+   —HANDOFF §3—), y sacarlo ahora cambiaría lo que esa medición tiene que
+   comparar. Se toca cuando se mida el volumen, no antes. */
 addEventListener('touchmove', e => {
   /* Si el gesto nació adentro de algo que scrollea por su cuenta, es suyo. */
   if (e.target instanceof Element &&
