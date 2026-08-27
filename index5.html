@@ -4663,6 +4663,16 @@ aplicarFeatures();
 traerConfig();
 traerMeta();
 
+/* Registra el service worker MÍNIMO (sw.js): habilita el WebAPK de Android
+   —"agregar a la pantalla de inicio" abre sin barras, en standalone—. No
+   cachea nada (ver sw.js). Va en `load` para no competir con el arranque, y
+   con `catch` para que un fallo de registro nunca rompa el reproductor. */
+if ('serviceWorker' in navigator) {
+  addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js').catch(function () {});
+  });
+}
+
 /* ── EL INSTRUMENTO PARA MEDIR EL TRAQUETEO DEL DIAL, apagado ──────
    El dial se traba una fracción de segundo al soltar el dedo, y hay SEIS
    hipótesis descartadas con medición (CRITERIOS-DISENO §4.9). Lo que las
