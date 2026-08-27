@@ -364,6 +364,17 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
+/* SÓLO en la app instalada: centrar la composición (26/08). En el navegador
+   se ancla arriba a propósito —centrarla ataba su posición al alto que el
+   navegador miente cuando la barra de direcciones aparece/desaparece
+   (CRITERIOS-DISENO §4.7)—. Pero en standalone NO hay barra que se mueva: el
+   alto es estable, así que centrar es seguro y queda mejor (sin la barra
+   arriba la composición se veía un poco alta). `safe center` cae a flex-start
+   si algún día no entra, para que el tope nunca se corte. `display-mode` no es
+   una media query de TAMAÑO, así que no rompe la regla 2. */
+@media (display-mode: standalone) {
+  body { align-items: safe center; }
+}
 
 /* ── El contenedor. En la piel base es transparente; un skin lo
       convierte en tarjeta sólo cambiando variables. ────────────── */
