@@ -716,15 +716,20 @@ body {
   overflow-wrap: break-word;
 }
 /* Dato, no etiqueta: sin tracking, con cifras de ancho fijo. */
-/* ÚLTIMO DE LA COMPOSICIÓN, y por eso sin reserva de alto (17/08).
-   Tenía `min-height: 15px` para que prenderlo no moviera lo de abajo. Ahora no
-   hay nada abajo: es el último elemento. Así que cuando está apagado no ocupa
-   NADA —ni el hueco de 15 ni su margen— y cuando se prende crece el borde de
-   abajo, que es el único lugar donde crecer no reacomoda nada.
-   El contador lo maneja el Worker, no el oyente. */
+/* RESERVA EL HUECO aunque el contador esté apagado (restaurado 26/08, a
+   pedido del usuario: "la idea era que no se moviera la composición").
+   Tenía `min-height: 15px` justo para eso; el 17/08 se sacó razonando "es el
+   último elemento, no hay nada abajo" — y era FALSO: el dial vive DEBAJO
+   (order 8 vs 7) y el `.dial-aviso` se dibuja pegado ARRIBA del dial. Sin la
+   reserva, al apagarse el contador el dial sube y el aviso ("La rama paralela ·
+   11 abr · 13:31") cae sobre "Mandanos tu mensaje" —medido: +8px de encimado—.
+   Con el hueco reservado la composición no se mueve y el aviso queda siempre
+   sobre este renglón (vacío o lleno). `1lh` = un renglón exacto, y sigue a
+   --fs-clock si una piel lo cambia. El contador lo maneja el Worker. */
 #listeners {
   display: block; font-size: var(--fs-clock); color: var(--text-dim);
   letter-spacing: 0; font-variant-numeric: tabular-nums;
+  min-height: 1lh;
   /* 20 y no 9: los oyentes NO son parte del bloque de contacto. "Mandanos tu
      mensaje" es la bajada del botón de WhatsApp y va pegada a él; el contador
      es un dato de la radio que quedó último por conveniencia de layout. A 9 px
@@ -739,7 +744,9 @@ body {
      no el hueco. */
   margin-top: 6px;
 }
-#listeners:empty { display: none; }
+/* Sin `#listeners:empty { display:none }`: colapsaba el hueco y movía el dial
+   (ver arriba). Con `min-height` el renglón vacío no se ve —queda en blanco—
+   pero reserva su alto, que es lo que se busca. */
 
 /* ── WhatsApp ────────────────────────────────────────────────── */
 /* El botón y su bajada son UNA cosa: la frase explica el botón, no convive con
