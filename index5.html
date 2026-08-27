@@ -2,8 +2,23 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Entresijo Radio</title>
+<!-- ── Modo app / íconos / pantalla bloqueada ──────────────────────────
+     Ícono vinilo noir (el mismo que dibuja portada() para el MediaSession).
+     "standalone" + metas de iOS: al "Agregar a la pantalla de inicio" abre
+     SIN barra de direcciones — alto completo y feel de app.
+     start_url va a /index5.html mientras index5 NO es el default; al
+     promoverlo a index.html cambiar a "/". -->
+<meta name="theme-color" content="#0a0806">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Entresijo">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://white-mud-e8b6.entresijoradio.workers.dev" crossorigin>
@@ -574,26 +589,34 @@ function portada() {
     // sus variables (data-skin vive en #app), y una custom property no se
     // hereda hacia arriba.
     const css = getComputedStyle(app);
-    g.fillStyle = css.getPropertyValue('--bg').trim() || '#050505';
-    g.fillRect(0, 0, 512, 512);
-    /* ⚠️ SIN MARCO. Android NO muestra esta imagen como una tarjeta: la usa
-       de FONDO de la notificación, recortada a una franja ancha desde el
-       centro y oscurecida, con su propio texto encima. El `strokeRect` que
-       había acá aparecía como dos rayas rojas verticales —los lados del
-       marco, lo único del rectángulo que sobrevive al recorte— y el texto
-       quedaba peleando con el del sistema. Visto en la pantalla bloqueada.
-       Lo que sobrevive bien a un recorte centrado es una marca centrada y
-       poco más: cualquier cosa cerca de los bordes se pierde o se convierte
-       en un artefacto como el de las rayas. */
-    g.fillStyle = css.getPropertyValue('--primary-bright').trim() || '#b31b14';
-    g.font = '800 64px Inter, sans-serif'; g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    /* Un poco por encima del centro: el recorte de la notificación se lleva
-       más de abajo que de arriba. */
-    g.fillText('ENTRESIJO', 256, 232);
-    g.fillStyle = css.getPropertyValue('--text-dim').trim() || '#5e5e5e';
-    g.font = '400 26px Inter, sans-serif';
-    g.fillText('RADIO SERRANA', 256, 292);
+    const bg  = css.getPropertyValue('--bg').trim() || '#0a0806';
+    const red = css.getPropertyValue('--primary-bright').trim() || '#b31b14';
+    const cx = 256, cy = 256;
+    g.fillStyle = bg; g.fillRect(0, 0, 512, 512);
+    /* ⚠️ SIN texto ni marco. Android NO muestra esto como tarjeta: lo usa de
+       FONDO, recortado a una franja ancha desde el centro y oscurecido, con
+       su propio texto encima. El texto viejo ("ENTRESIJO / RADIO SERRANA")
+       peleaba con el del sistema y un marco dejaba dos rayas en los lados.
+       Lo que sobrevive a ese recorte es una MARCA CENTRADA: el vinilo con el
+       centro rojo. El aro exterior puede perderse en los lados y no importa —
+       lo reconocible es el centro. Es el mismo dibujo que el ícono de la app
+       (icon-512.png), a mano en canvas para que siga el color de la piel. */
+    // aro "en el aire" (glow rojo)
+    g.save(); g.shadowBlur = 22; g.shadowColor = red;
+    g.globalAlpha = 0.6; g.strokeStyle = red; g.lineWidth = 4;
+    g.beginPath(); g.arc(cx, cy, 193, 0, 7); g.stroke(); g.restore();
+    // disco de vinilo
+    g.fillStyle = '#17110f'; g.beginPath(); g.arc(cx, cy, 179, 0, 7); g.fill();
+    // surcos muy sutiles
+    [115, 136, 156].forEach(r => {
+      g.strokeStyle = 'rgba(200,200,205,.03)'; g.lineWidth = 1;
+      g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke();
+    });
+    g.strokeStyle = red; g.globalAlpha = 0.13; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(cx, cy, 146, 0, 7); g.stroke(); g.globalAlpha = 1;
+    // etiqueta central roja + agujero
+    g.fillStyle = red; g.beginPath(); g.arc(cx, cy, 58, 0, 7); g.fill();
+    g.fillStyle = bg;  g.beginPath(); g.arc(cx, cy, 9, 0, 7); g.fill();
     return c.toDataURL('image/png');
   } catch (e) { return null; }
 }

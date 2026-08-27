@@ -1332,10 +1332,22 @@ body {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 999;
   background: #0a0a0a; border-top: 1px solid var(--primary);
   padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
-  transform: translateY(101%); transition: transform .35s var(--ease);
   max-height: 62vh; overflow-y: auto; text-align: left;
+  /* ⚠️ CERRADO = display:none, NO translateY solo. Un `position: fixed`
+     trasladado 101% hacia abajo seguía ocupando alto de documento: Chrome
+     contaba los ~29 px que asomaban bajo el viewport, y eso hacía scrollear
+     la página ENTERA aunque el panel no se abriera nunca —era el "desborde"
+     que se le atribuía a la composición—. `display:none` no ocupa nada.
+     Sólo `transform` transiciona (NO `display`): con `display allow-discrete`
+     el cierre lo mantenía en block 350ms mientras se deslizaba, y ahí el
+     fantasma reaparecía. Así el cierre es instantáneo; la entrada desliza por
+     @starting-style. */
+  display: none;
+  transform: translateY(101%);
+  transition: transform .35s var(--ease);
 }
-#dev-panel.open { transform: translateY(0); }
+#dev-panel.open { display: block; transform: translateY(0); }
+@starting-style { #dev-panel.open { transform: translateY(101%); } }
 .dev-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .dev-row:last-child { margin-bottom: 0; }
 .dev-tag {
