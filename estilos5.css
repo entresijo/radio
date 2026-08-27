@@ -407,18 +407,28 @@ body {
   display: flex; align-items: center; justify-content: center;
   background: var(--bg); pointer-events: none;
 }
-#app-intro img { width: 42vmin; height: 42vmin; transform-origin: center; }
-/* El vinilo zoomea LENTO y GRANDE hasta que el centro rojo cubre toda la
-   pantalla (opaco: tapa el reproductor). El fundido va SÓLO al final (último
-   10 %), cuando ya está todo cubierto, así el reproductor aparece de atrás de
-   una pantalla llena y NO se ve "a través" del vinilo —lo que hacía evidentes
-   dos círculos que no coinciden, el del vinilo y el del play—. `scale(40)`
-   garantiza que el rojo llene hasta las esquinas en cualquier teléfono; es un
-   transform GPU sobre una imagen chica, así que no cuesta. */
-#app-intro.arrancar     { animation: app-intro-fundir 1.3s linear forwards; }
-#app-intro.arrancar img { animation: app-intro-zoom 1.3s cubic-bezier(.5, 0, .75, .35) forwards; }
-@keyframes app-intro-zoom   { to { transform: scale(40); } }
-@keyframes app-intro-fundir { 0%, 90% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+/* `brightness` baja el rojo del vinilo a un tono más oscuro (noir) SÓLO en la
+   intro, sin tocar el archivo del ícono (el del splash/pantalla de inicio sigue
+   igual). */
+#app-intro img { width: 42vmin; height: 42vmin; transform-origin: center; filter: brightness(.8); }
+/* La secuencia, en dos tiempos, para que la transición no se sienta cortada ni
+   se vean "dos círculos":
+   1) el vinilo hace ZOOM y se DISUELVE en el fondo oscuro (0→48%). El fondo
+      (--bg, negro noir) tapa todo, uniforme: nunca se ve el reproductor a
+      través del vinilo mientras es un círculo, ni un rojo que llene la pantalla.
+   2) el fondo oscuro hace un FADE al reproductor (52→100%), que ya está quieto
+      detrás. Termina yendo al negro y de ahí abre al player. */
+#app-intro.arrancar     { animation: app-intro-fundir 1.3s ease-in-out forwards; }
+#app-intro.arrancar img { animation: app-intro-zoom 1.3s cubic-bezier(.5, 0, .7, .4) forwards; }
+@keyframes app-intro-zoom {
+  0%   { transform: scale(1);  opacity: 1; }
+  48%  { transform: scale(15); opacity: 0; }
+  100% { transform: scale(34); opacity: 0; }
+}
+@keyframes app-intro-fundir {
+  0%, 52% { opacity: 1; }
+  100%    { opacity: 0; visibility: hidden; }
+}
 
 /* ── El contenedor. En la piel base es transparente; un skin lo
       convierte en tarjeta sólo cambiando variables. ────────────── */
