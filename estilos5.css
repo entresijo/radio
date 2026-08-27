@@ -391,14 +391,27 @@ body {
    si algún día no entra, para que el tope nunca se corte. `display-mode` no es
    una media query de TAMAÑO, así que no rompe la regla 2. */
 @media (display-mode: standalone) {
-  /* Centrada + fade-in al abrir. El body arranca invisible y el JS lo revela
-     (`.app-listo`) YA ASENTADO —tras la fuente + dos cuadros—, así el
-     reacomodo del centrado pasa MIENTRAS NO SE VE y aparece quieta. Sólo acá:
-     en el navegador el body es visible siempre (esta `@media` no aplica). El
-     JS tiene una red de seguridad (timeout) para que nunca quede invisible. */
-  body { align-items: safe center; opacity: 0; }
-  body.app-listo { opacity: 1; transition: opacity .3s ease; }
+  body { align-items: safe center; }   /* alto estable en la app: se centra */
 }
+/* ── Intro de arranque de la app ──────────────────────────────────────
+   La inyecta el JS SÓLO en standalone (ver el <script> al abrir el <body>),
+   así en el navegador este elemento no existe y estas reglas quedan inertes.
+   El vinilo —el mismo del splash de Android— arranca centrado (encadena con el
+   splash: mismo fondo, mismo ícono) y, cuando la composición ya se asentó, la
+   clase `arrancar` dispara el ZOOM hacia el centro + la disolución de la capa,
+   dejando ver el reproductor ya quieto detrás. Se lee como una sola secuencia:
+   ícono → zoom → reproductor. `42vmin` ≈ el tamaño del ícono en el splash, para
+   que el traspaso no salte. */
+#app-intro {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg); pointer-events: none;
+}
+#app-intro img { width: 42vmin; height: 42vmin; transform-origin: center; }
+#app-intro.arrancar     { animation: app-intro-fundir .8s ease-in forwards; }
+#app-intro.arrancar img { animation: app-intro-zoom .8s cubic-bezier(.5, 0, .9, .25) forwards; }
+@keyframes app-intro-zoom   { to { transform: scale(9); } }
+@keyframes app-intro-fundir { 0%, 40% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
 
 /* ── El contenedor. En la piel base es transparente; un skin lo
       convierte en tarjeta sólo cambiando variables. ────────────── */

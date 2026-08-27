@@ -42,6 +42,25 @@
      archivo ya es la copia.
      ═══════════════════════════════════════════════════════════════════ -->
 <body>
+<script>
+/* ── INTRO DE ARRANQUE (sólo app instalada) ──────────────────────────
+   Inyecta el vinilo a pantalla completa ANTES de que se pinte el reproductor,
+   para encadenar con el splash estático de Android sin un parpadeo del
+   contenido. El zoom + la salida los maneja el CSS (#app-intro) y el
+   disparador vive en el arranque del script principal (al final del <body>),
+   que le agrega la clase `arrancar` recién cuando la composición ya se asentó.
+   Todo envuelto en try/catch + un timeout de seguridad: si algo falla, la capa
+   se saca sola y NUNCA deja la pantalla tapada. En el navegador no se inyecta
+   (no es standalone), así que es inocuo. */
+try {
+  if (matchMedia('(display-mode: standalone)').matches) {
+    var _intro = document.createElement('div'); _intro.id = 'app-intro';
+    var _iv = document.createElement('img'); _iv.src = '/icon-512.png'; _iv.alt = '';
+    _intro.appendChild(_iv); document.body.appendChild(_intro);
+    setTimeout(function () { if (_intro && _intro.parentNode) _intro.parentNode.removeChild(_intro); }, 2600);
+  }
+} catch (e) {}
+</script>
 
 <div class="player-app layout-eje" id="app">
 
@@ -4673,23 +4692,30 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-/* ── Revelar la composición YA ASENTADA (para el fade-in de la app) ──────
-   En modo app la composición está CENTRADA, así que cualquier reacomodo al
-   cargar (la fuente entrando, un elemento que se asienta) reposiciona todo y
-   se ve el "salto" del logo/disco. Con el body arrancando invisible (CSS,
-   sólo en standalone) y revelándolo recién cuando ya cargó y pintó, el
-   reacomodo pasa mientras no se ve. En el navegador el body ya es visible, así
-   que esto es inocuo. La `.app-listo` es idempotente y el `setTimeout` es la
-   RED DE SEGURIDAD: pase lo que pase, nunca queda invisible. */
+/* ── Disparar la intro de arranque (zoom del vinilo) ─────────────────────
+   La capa #app-intro la inyectó el <script> del principio del <body> (sólo en
+   la app). Acá se le agrega `arrancar` —que dispara el zoom + la disolución—
+   RECIÉN cuando la composición ya se asentó (load + fuente + dos cuadros), así
+   el reproductor que queda detrás ya está quieto. Después se saca la capa.
+   Si no hay #app-intro (navegador, o no se inyectó), no hace nada. El
+   `setTimeout` es la red de seguridad; el <script> del arranque tiene otra
+   aparte, así que la capa se va sí o sí. */
 (function () {
-  function revelar() { document.body.classList.add('app-listo'); }
+  var intro = document.getElementById('app-intro');
+  if (!intro) return;
+  var disparado = false;
+  function arrancar() {
+    if (disparado) return; disparado = true;
+    intro.classList.add('arrancar');
+    setTimeout(function () { if (intro.parentNode) intro.parentNode.removeChild(intro); }, 900);
+  }
   addEventListener('load', function () {
     var f = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
     f.then(function () {
-      requestAnimationFrame(function () { requestAnimationFrame(revelar); });
+      requestAnimationFrame(function () { requestAnimationFrame(arrancar); });
     });
   });
-  setTimeout(revelar, 1500);
+  setTimeout(arrancar, 1600);
 })();
 
 /* ── EL INSTRUMENTO PARA MEDIR EL TRAQUETEO DEL DIAL, apagado ──────
