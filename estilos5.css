@@ -391,7 +391,13 @@ body {
    si algún día no entra, para que el tope nunca se corte. `display-mode` no es
    una media query de TAMAÑO, así que no rompe la regla 2. */
 @media (display-mode: standalone) {
-  body { align-items: safe center; }
+  /* Centrada + fade-in al abrir. El body arranca invisible y el JS lo revela
+     (`.app-listo`) YA ASENTADO —tras la fuente + dos cuadros—, así el
+     reacomodo del centrado pasa MIENTRAS NO SE VE y aparece quieta. Sólo acá:
+     en el navegador el body es visible siempre (esta `@media` no aplica). El
+     JS tiene una red de seguridad (timeout) para que nunca quede invisible. */
+  body { align-items: safe center; opacity: 0; }
+  body.app-listo { opacity: 1; transition: opacity .3s ease; }
 }
 
 /* ── El contenedor. En la piel base es transparente; un skin lo

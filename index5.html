@@ -4673,6 +4673,25 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+/* ── Revelar la composición YA ASENTADA (para el fade-in de la app) ──────
+   En modo app la composición está CENTRADA, así que cualquier reacomodo al
+   cargar (la fuente entrando, un elemento que se asienta) reposiciona todo y
+   se ve el "salto" del logo/disco. Con el body arrancando invisible (CSS,
+   sólo en standalone) y revelándolo recién cuando ya cargó y pintó, el
+   reacomodo pasa mientras no se ve. En el navegador el body ya es visible, así
+   que esto es inocuo. La `.app-listo` es idempotente y el `setTimeout` es la
+   RED DE SEGURIDAD: pase lo que pase, nunca queda invisible. */
+(function () {
+  function revelar() { document.body.classList.add('app-listo'); }
+  addEventListener('load', function () {
+    var f = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+    f.then(function () {
+      requestAnimationFrame(function () { requestAnimationFrame(revelar); });
+    });
+  });
+  setTimeout(revelar, 1500);
+})();
+
 /* ── EL INSTRUMENTO PARA MEDIR EL TRAQUETEO DEL DIAL, apagado ──────
    El dial se traba una fracción de segundo al soltar el dedo, y hay SEIS
    hipótesis descartadas con medición (CRITERIOS-DISENO §4.9). Lo que las
