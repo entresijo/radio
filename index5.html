@@ -57,7 +57,7 @@ try {
     var _intro = document.createElement('div'); _intro.id = 'app-intro';
     var _iv = document.createElement('img'); _iv.src = '/icon-512.png'; _iv.alt = '';
     _intro.appendChild(_iv); document.body.appendChild(_intro);
-    setTimeout(function () { if (_intro && _intro.parentNode) _intro.parentNode.removeChild(_intro); }, 2600);
+    setTimeout(function () { if (_intro && _intro.parentNode) _intro.parentNode.removeChild(_intro); }, 3500);
   }
 } catch (e) {}
 </script>
@@ -4707,7 +4707,7 @@ if ('serviceWorker' in navigator) {
   function arrancar() {
     if (disparado) return; disparado = true;
     intro.classList.add('arrancar');
-    setTimeout(function () { if (intro.parentNode) intro.parentNode.removeChild(intro); }, 900);
+    setTimeout(function () { if (intro.parentNode) intro.parentNode.removeChild(intro); }, 1400);
   }
   addEventListener('load', function () {
     var f = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
