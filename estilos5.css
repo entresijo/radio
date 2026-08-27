@@ -352,7 +352,15 @@ body {
      `100svh` sigue sólo para que el fondo cubra la pantalla. */
   min-height: 100svh; display: flex; justify-content: center;
   align-items: flex-start;
-  padding: calc(var(--gap-body-v) + var(--baja)) var(--gap-body) var(--gap-body-v);
+  /* `env(safe-area-inset-*)` respeta las barras del sistema en modo app
+     instalado (26/08): con `viewport-fit=cover` el contenido se metía bajo la
+     barra de estado (arriba) y podía quedar tapado por la de navegación
+     (abajo). Sumar los insets lo baja debajo del status y lo mantiene arriba
+     de la barra de botones. En el navegador los `env()` valen 0, así que NO
+     cambia nada ahí. */
+  padding: calc(var(--gap-body-v) + var(--baja) + env(safe-area-inset-top))
+           var(--gap-body)
+           calc(var(--gap-body-v) + env(safe-area-inset-bottom));
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
