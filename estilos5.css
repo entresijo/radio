@@ -418,15 +418,15 @@ body {
       través del vinilo mientras es un círculo, ni un rojo que llene la pantalla.
    2) el fondo oscuro hace un FADE al reproductor (52→100%), que ya está quieto
       detrás. Termina yendo al negro y de ahí abre al player. */
-#app-intro.arrancar     { animation: app-intro-fundir 1.3s ease-in-out forwards; }
-#app-intro.arrancar img { animation: app-intro-zoom 1.3s cubic-bezier(.5, 0, .7, .4) forwards; }
+#app-intro.arrancar     { animation: app-intro-fundir 1.5s ease-in-out forwards; }
+#app-intro.arrancar img { animation: app-intro-zoom 1.5s cubic-bezier(.45, 0, .7, .45) forwards; }
 @keyframes app-intro-zoom {
   0%   { transform: scale(1);  opacity: 1; }
-  48%  { transform: scale(15); opacity: 0; }
+  72%  { transform: scale(16); opacity: 0; }   /* el zoom se lleva la mayor parte */
   100% { transform: scale(34); opacity: 0; }
 }
 @keyframes app-intro-fundir {
-  0%, 52% { opacity: 1; }
+  0%, 78% { opacity: 1; }                        /* fade al player corto: últimos 22% */
   100%    { opacity: 0; visibility: hidden; }
 }
 
