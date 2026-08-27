@@ -7,6 +7,24 @@
    Todo cambio de diseño va acá.
    ═══════════════════════════════════════════════════════════════════ */
 
+/* ── Reserva "calzada" para Inter (26/08) ─────────────────────────────
+   Inter se pide de Google Fonts y tarda una fracción de segundo en CADA
+   apertura (cada carga es un documento nuevo). Ese instante el texto se dibuja
+   con la fuente del sistema; sin ajustar, ocupa un alto distinto que Inter, y
+   al entrar Inter la composición reflueye —y como en la app está centrada,
+   reposiciona TODO (el "acomode" del logo y el disco al abrir)—. Con estas
+   métricas la reserva ocupa LO MISMO que Inter (size-adjust corrige el ancho;
+   los override, el alto de línea), así que el intercambio no mueve nada.
+   Valores estándar Inter↔Arial; en Android cae a Roboto, aproximación buena. */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial'), local('Helvetica'), local('Roboto');
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0.00%;
+  size-adjust: 107.12%;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    VARIABLES — todo el aspecto vive acá.
    Un skin es un bloque que redefine estas variables y nada más.
@@ -45,7 +63,7 @@
   --text-faint: #2c2c2c;   /* decorativo: bordes y separadores. NUNCA texto */
 
   /* Tipografía */
-  --font:        'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font:        'Inter', 'Inter Fallback', -apple-system, 'Segoe UI', system-ui, sans-serif;
   /* LA ESCALA, decidida con el diseñador el 17/08 y corregida dos veces.
      Cuatro registros con distancia de verdad: los saltos son x1,2, x1,42 y
      x1,41. Antes eran 11, 12, 13 y 28 — tres tamanos separados por menos del
