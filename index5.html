@@ -2,24 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Entresijo Radio</title>
-<!-- ── Modo app / íconos / pantalla bloqueada (26/08) ──────────────────
-     El ícono es un vinilo noir con centro rojo (mismo que dibuja portada()
-     para el MediaSession). "standalone" + las metas de iOS hacen que, al
-     "Agregar a la pantalla de inicio", la radio abra SIN barra de
-     direcciones — de ahí el alto completo y el feel de app.
-     start_url apunta a /index5.html mientras index5 NO es el default; al
-     promoverlo a index.html hay que cambiarlo a "/". -->
-<meta name="theme-color" content="#0a0806">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Entresijo">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://white-mud-e8b6.entresijoradio.workers.dev" crossorigin>
@@ -588,36 +572,28 @@ function portada() {
     const g = c.getContext('2d');
     // Del elemento .player-app, no de <html>: ahí es donde un skin publica
     // sus variables (data-skin vive en #app), y una custom property no se
-    // hereda hacia arriba. Así la carátula sigue el rojo de la piel activa.
+    // hereda hacia arriba.
     const css = getComputedStyle(app);
-    const bg  = css.getPropertyValue('--bg').trim() || '#0a0806';
-    const red = css.getPropertyValue('--primary-bright').trim() || '#b31b14';
-    const cx = 256, cy = 256;
-    g.fillStyle = bg; g.fillRect(0, 0, 512, 512);
-    /* ⚠️ SIN texto ni marco. Android NO muestra esto como tarjeta: lo usa de
-       FONDO, recortado a una franja ancha desde el centro y oscurecido, con
-       su propio texto encima. El texto viejo ("ENTRESIJO / RADIO SERRANA")
-       peleaba con el del sistema y un marco dejaba dos rayas en los lados.
-       Lo que sobrevive a ese recorte es una MARCA CENTRADA: el vinilo con el
-       centro rojo. El aro exterior puede perderse en los lados y no importa —
-       lo reconocible es el centro. Es el mismo dibujo que el ícono de la app
-       (icon-512.png), a mano en canvas para que siga el color de la piel. */
-    // aro "en el aire" (glow rojo)
-    g.save(); g.shadowBlur = 22; g.shadowColor = red;
-    g.globalAlpha = 0.6; g.strokeStyle = red; g.lineWidth = 4;
-    g.beginPath(); g.arc(cx, cy, 193, 0, 7); g.stroke(); g.restore();
-    // disco de vinilo
-    g.fillStyle = '#17110f'; g.beginPath(); g.arc(cx, cy, 179, 0, 7); g.fill();
-    // surcos muy sutiles
-    [115, 136, 156].forEach(r => {
-      g.strokeStyle = 'rgba(200,200,205,.03)'; g.lineWidth = 1;
-      g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke();
-    });
-    g.strokeStyle = red; g.globalAlpha = 0.13; g.lineWidth = 1.5;
-    g.beginPath(); g.arc(cx, cy, 146, 0, 7); g.stroke(); g.globalAlpha = 1;
-    // etiqueta central roja + agujero
-    g.fillStyle = red; g.beginPath(); g.arc(cx, cy, 58, 0, 7); g.fill();
-    g.fillStyle = bg;  g.beginPath(); g.arc(cx, cy, 9, 0, 7); g.fill();
+    g.fillStyle = css.getPropertyValue('--bg').trim() || '#050505';
+    g.fillRect(0, 0, 512, 512);
+    /* ⚠️ SIN MARCO. Android NO muestra esta imagen como una tarjeta: la usa
+       de FONDO de la notificación, recortada a una franja ancha desde el
+       centro y oscurecida, con su propio texto encima. El `strokeRect` que
+       había acá aparecía como dos rayas rojas verticales —los lados del
+       marco, lo único del rectángulo que sobrevive al recorte— y el texto
+       quedaba peleando con el del sistema. Visto en la pantalla bloqueada.
+       Lo que sobrevive bien a un recorte centrado es una marca centrada y
+       poco más: cualquier cosa cerca de los bordes se pierde o se convierte
+       en un artefacto como el de las rayas. */
+    g.fillStyle = css.getPropertyValue('--primary-bright').trim() || '#b31b14';
+    g.font = '800 64px Inter, sans-serif'; g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    /* Un poco por encima del centro: el recorte de la notificación se lleva
+       más de abajo que de arriba. */
+    g.fillText('ENTRESIJO', 256, 232);
+    g.fillStyle = css.getPropertyValue('--text-dim').trim() || '#5e5e5e';
+    g.font = '400 26px Inter, sans-serif';
+    g.fillText('RADIO SERRANA', 256, 292);
     return c.toDataURL('image/png');
   } catch (e) { return null; }
 }
@@ -4581,26 +4557,28 @@ $('station-name').addEventListener('click', () => {
 })();
 
 /* ═════════════════════════════════════════════════════════════════
-   LA PÁGINA NO SE DESPLAZA VERTICALMENTE (19/08, corregido 26/08)
+   LA PÁGINA NO SE DESPLAZA VERTICALMENTE (19/08)
 
-   Dos piezas la frenan, y NINGUNA es un candado de `overflow:hidden` sobre la
-   página. Ese candado se probó (26/08) y estaba mal: RECORTA la composición
-   —con poco alto útil el final del dial queda cortado— y mata el
-   deslizamiento de ~20 px que el diseño ACEPTA con el contador de oyentes
-   prendido (DISENO §11). Sacado.
+   Nunca estuvo implementado: se comparó `estilos5.css` contra la foto del
+   inicio de sesión y no hay ni hubo regla que lo bloquee. Lo que sí está es
+   `overscroll-behavior-y: none`, que mata el pull-to-refresh de Android y
+   nada más — de ahí venía la impresión de que estaba resuelto.
 
-   1. `overscroll-behavior-y: none` (CSS) mata el pull-to-refresh de Android.
-   2. Este `preventDefault` de touchmove frena el gesto vertical que llegó
-      hasta el documento sin que nadie lo quisiera. NO cancela todo: el
-      historial abierto tiene su propio desplazamiento y el dial el
-      horizontal, así que se abre para `.dial-tira`/`.vol-slider`.
+   ⚠️ ESTO ESCONDE UN DESBORDE, NO LO ARREGLA. Medido en 411 × 771, que es el
+   teléfono del usuario: la composición mide **29 px más que la pantalla** con
+   el contador de oyentes prendido, y eso es de diseño, no de lógica. Lo que
+   queda fuera de cuadro es el final del dial. Bloquear el desplazamiento hace
+   que no se pueda ir a buscarlo; que entre es otra decisión, y es de la otra
+   sesión (ver el pendiente en ARRANQUE-LOGICA).
 
-   ⚠️ El "desborde de 29 px" que se atribuía a la composición NO era la
-   composición —ésta entra en 771—: era el `#dev-panel` (el panel de los 5
-   toques), `position: fixed` con `translateY(101%)`, que asomaba 29 px bajo
-   el viewport y Chrome los contaba como alto del documento. Se arregló EN SU
-   ORIGEN (`display:none` cuando está cerrado, en estilos5.css), así que ya no
-   hay nada que scrollear. */
+   Va en JS y no en CSS a propósito: `overflow: hidden` en el body cambia la
+   maquetación y `position: fixed` reintroduce justo la clase de problema de
+   CRITERIOS-DISENO §4.7 —atar la posición a un alto que el navegador no
+   garantiza—. Cancelar el gesto es más chico y no toca la composición.
+
+   Y NO cancela todo: el historial abierto tiene su propio desplazamiento
+   vertical y el dial el horizontal. Sólo se frena el gesto que llegó hasta el
+   documento sin que nadie lo quisiera. */
 addEventListener('touchmove', e => {
   /* Si el gesto nació adentro de algo que scrollea por su cuenta, es suyo. */
   if (e.target instanceof Element &&

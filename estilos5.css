@@ -128,13 +128,8 @@
      APAGADO (670 de composición + 38 arriba + 20 abajo = 728 justo).
      Subido a 26, 36 y 44 el 17/08, siempre a pedido ("bajá todo contra el
      dial"). El alto que eso cuesta salió de la zona del contador de
-     oyentes, no de acá: ver #listeners y --gap-dial-fin.
-     44 → 34 el 26/08 ("subir todo", los 10 de arriba). OJO: NO fue para
-     arreglar un desborde — la composición ya entraba (terminaba en ~749 de
-     771). El "desborde de 29 px" que se le atribuía era otra cosa: el
-     #dev-panel (panel de los 5 toques), fixed y translateY(101%), que asoma
-     29 px por debajo del viewport. Esto es sólo un apriete pedido. */
-  --baja:        34px;
+     oyentes, no de acá: ver #listeners y --gap-dial-fin. */
+  --baja:        44px;
   --gap-aire:    52px;   /* ENTRE bloques */
   --gap-junto:    9px;   /* ADENTRO de un bloque */
   /* Del reloj al cartel. Bajó dos veces: de 52 a 40 cuando el nombre de la
@@ -151,10 +146,8 @@
      cuánto mide ESTE lado solo sino que quede pareja con el padding-top de
      .ws-block (30 también) — la raya centrada entre historial y WhatsApp,
      no más cerca de uno que del otro. El total (60) no cambió: se
-     redistribuyó, no se agregó alto nuevo.
-     30 → 23 el 26/08 (los 7 de "entre historial y la raya"). El padding-top
-     de .ws-block baja a 23 también: siguen iguales, la raya sigue centrada. */
-  --gap-hist-ws: 23px;               /* lo que suena → la raya */
+     redistribuyó, no se agregó alto nuevo. */
+  --gap-hist-ws: 30px;               /* lo que suena → la raya */
   --gap-badge:   18px;              /* el cartel es del aparato: va pegado */
   /* Dos excepciones deliberadas al ritmo de 52, las dos hacia arriba (16/08):
      el título sube hacia el círculo y el pie sube hacia el título. La
@@ -836,14 +829,11 @@ body {
      nada que ver. Medido, no supuesto. El colapso espera a que termine el
      desvanecido (`0s .22s`); al abrir es instantáneo (`0s`), así que el
      contenido ya está mientras entra la opacidad. */
-  /* Colapsado ocupa CERO (max-height:0). El scroll interno va en `.open`.
-     Historia: el 19/08 se puso `overflow-y: hidden` razonando que "NADA de la
-     composición se desplace" — pero eso confundía dos cosas. Este panel es un
-     overlay `position: absolute` (se abre ENCIMA, no empuja): scrollear
-     ADENTRO del panel no mueve ni un píxel de la composición. El 26/08 se pidió
-     el scroll de vuelta —si el Worker manda más de ocho ítems, cortarlos y no
-     poder verlos es peor que un scroll en un panel flotante—. Va en `.open`
-     (abajo); colapsado sigue en hidden, que con max-height:0 es lo mismo. */
+  /* `hidden` y no `auto` (19/08): abrir el historial habilitaba un
+     desplazamiento propio, y el pedido es que NADA de la composición se
+     desplace nunca — si no entra, se corta y listo, que es como se comportaba
+     antes. El alto sigue en 46vh, así que en la práctica entran los ocho
+     ítems que manda el Worker; el corte es la red por si alguna vez son más. */
   max-height: 0; overflow-y: hidden;
   opacity: 0; visibility: hidden;
   transition: opacity .22s var(--ease), transform .22s var(--ease),
@@ -853,9 +843,6 @@ body {
 #history-list.open {
   opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
   max-height: 46vh;
-  /* Si el contenido pasa los 46vh, el panel scrollea adentro (26/08). Es un
-     overlay flotante, así que este scroll no mueve la composición. */
-  overflow-y: auto; overscroll-behavior: contain;
   transition: opacity .22s var(--ease), transform .22s var(--ease),
               visibility 0s, max-height 0s;
 }
@@ -931,14 +918,12 @@ body {
      "centrada" — este número ahora es igual a --gap-hist-ws a propósito, así
      la raya queda a la misma distancia de los dos lados. La distancia
      dial→contacto no se toca, sólo ésta.
-     30 → 23 el 26/08 (los 7 de "entre la raya y el pie"): baja con
-     --gap-hist-ws (23 también), así los dos lados siguen parejos.
      El color también sube un grado: --border-soft (#251d1d) se pensó para
      una línea que corre pegada al fondo; --text-faint (#2c2c2c) es
      literalmente el token para "bordes y separadores" — un grado más de
      gris, y el que correspondía desde el principio. */
   border-top: 1px solid var(--text-faint);
-  padding-top: 23px;
+  padding-top: 30px;
   /* El renglón de reserva del título vivía ACÁ, y se mudó al dial el 17/08.
      La razón por la que estaba acá era "es el último elemento, así que
      guardarlo abajo no le hace sombra a nada" — y dejó de ser cierto
@@ -1340,24 +1325,10 @@ body {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 999;
   background: #0a0a0a; border-top: 1px solid var(--primary);
   padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+  transform: translateY(101%); transition: transform .35s var(--ease);
   max-height: 62vh; overflow-y: auto; text-align: left;
-  /* ⚠️ CERRADO = display:none, NO translateY solo (26/08). Un elemento
-     `position: fixed` trasladado 101% hacia abajo seguía ocupando alto de
-     documento: Chrome contaba los ~29 px que asomaban bajo el viewport, y eso
-     hacía scrollear la página ENTERA aunque el panel no se abriera nunca —era
-     el "desborde" que se le atribuía a la composición—. `display:none` no
-     ocupa nada. El slide se conserva con @starting-style + allow-discrete. */
-  display: none;
-  transform: translateY(101%);
-  /* Sólo `transform` transiciona, NO `display`: con `display allow-discrete`
-     el cierre mantiene el panel en block 350ms mientras se desliza, y en esa
-     ventana el fantasma de 29 px reaparece. Sin eso, cerrar es instantáneo
-     (display:none al toque, cero fantasma). La entrada sí desliza, por
-     @starting-style. */
-  transition: transform .35s var(--ease);
 }
-#dev-panel.open { display: block; transform: translateY(0); }
-@starting-style { #dev-panel.open { transform: translateY(101%); } }
+#dev-panel.open { transform: translateY(0); }
 .dev-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .dev-row:last-child { margin-bottom: 0; }
 .dev-tag {
