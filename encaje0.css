@@ -1,0 +1,126 @@
+/* ═══════════════════════════════════════════════════════════════════
+   encaje0.css — EL ENCAJE. Sólo lo usa index0.html.
+
+   QUÉ ARREGLA
+   La composición pide 751 px de alto SIEMPRE: es la misma cifra de 320 px
+   a 1280 px de ancho (medido, no estimado — no hay ni una @media de tamaño,
+   y ésa es justamente la decisión de diseño). Pero el alto útil de un
+   teléfono con la barra del navegador puesta va de 553 px (iPhone SE) a
+   823 px (Pixel 8). O sea: en buena parte de la flota NO ENTRA, y lo que
+   queda afuera es el final de la composición — el dial y el contador.
+
+   ESTE ARCHIVO NO AGREGA NINGÚN PUNTO DE CORTE. No hay `@media` de ancho:
+   hay dos números continuos que publica el JS —igual que ya publica
+   --nivel, --vol-pct y --giro-vel— y que el CSS decide cómo gastar. La
+   regla 2 (`entresijo-sin-media-queries`) se mantiene entera: nada se
+   mueve de lugar entre dispositivos, sólo se aprieta parejo.
+
+   LOS DOS NÚMEROS, EN ORDEN. Importa que sea en orden: cada uno se agota
+   antes de que empiece el siguiente, así que en una pantalla holgada NO
+   PASA NADA y la composición es exactamente la de hoy.
+
+     1) --aire  (1 → 0,42)   Los HUECOS ceden primero.
+        Cuesta cero: no cambia ningún ancho, ningún tamaño de letra y
+        ninguna coordenada. El reproductor se junta un poco, que es lo que
+        hace cualquiera cuando le falta lugar en una repisa.
+        Rinde ~150 px, o sea la mayoría de los teléfonos.
+
+     2) --encaje (1 → 0,80)  Recién entonces, la ESCALA.
+        Achica la composición entera de forma proporcional. Es el mecanismo
+        que estaba escrito arriba de `.player-app` en estilos5.css desde
+        siempre —"ENCAJE AUTOMÁTICO … el JS mide y publica --encaje"— pero
+        que NO estaba implementado: `--encaje` no aparecía en ningún otro
+        lado del proyecto. Esto lo termina.
+        `zoom` y no `transform: scale()` por la razón que ya decía ese
+        comentario: transform encoge el dibujo pero no la caja.
+        El piso de 0,80 también es de ahí: más abajo la tipografía de 10 px
+        deja de leerse, y ahí el problema ya no se arregla encogiendo.
+
+   ⚠️ EL DIAL VA EN ESCALA 1:1 A PROPÓSITO — ver el bloque #dial al final.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Valores de reposo. Si el JS no corre —o si corre y no hace falta
+     apretar nada— el reproductor es idéntico al de hoy, al píxel. */
+  --aire:   1;
+  --encaje: 1;
+
+  /* ── Los huecos, atados a --aire ──────────────────────────────────
+     Los valores de la izquierda son los MISMOS que declara estilos5.css;
+     se repiten acá porque una variable no puede referirse a sí misma.
+     Si alguno cambia allá, hay que cambiarlo acá — está anotado en el
+     informe como el costo de este archivo. */
+  --gap-header:   calc(38px * var(--aire));   /* identidad → cartel */
+  --gap-badge:    calc(18px * var(--aire));   /* cartel → aparato */
+  --gap-core:     calc(27px * var(--aire));   /* aparato → lo que suena */
+  --gap-artista:  calc(14px * var(--aire));   /* artista → título */
+  --gap-meta:     calc(12px * var(--aire));   /* título → historial */
+  --gap-hist-ws:  calc(30px * var(--aire));   /* lo que suena → la raya */
+  --gap-dial-fin: calc(20px * var(--aire));   /* la raya → el dial */
+  --gap-body-v:   calc(20px * var(--aire));   /* margen de la pantalla */
+
+  /* --baja es el que más rinde y el que menos cuesta: son 44 px de puro
+     descenso que existen para que la composición no nazca pegada al borde
+     (CRITERIOS-DISENO §4.7). Cuando falta lugar, ese lujo es lo primero
+     que sobra, así que cede MÁS RÁPIDO que el resto: al 50 % de aire ya
+     está en cero. La composición nunca queda pegada arriba igual, porque
+     --gap-body-v sigue debajo. */
+  --baja: calc(44px * max(0, (var(--aire) - .5)) * 2);
+}
+
+/* El único hueco de la composición que estaba escrito en píxeles crudos y
+   no en un token: el renglón del contador de oyentes. Sigue la misma suerte
+   que los demás. */
+#listeners { margin-top: calc(6px * var(--aire)); }
+
+/* ── 2) La escala ────────────────────────────────────────────────────
+   Va sobre .player-app y no sobre el body: el relleno del body (los
+   márgenes de pantalla) tiene que seguir midiendo píxeles de verdad, si no
+   el margen se achicaría dos veces.
+
+   Firefox anterior al 126 no soporta `zoom`: ahí esta línea se ignora y
+   queda funcionando sólo el tramo 1 (los huecos). Se degrada solo, sin
+   fallback y sin @supports. */
+.player-app { zoom: var(--encaje, 1); }
+
+/* ── EL DIAL QUEDA EN 1:1 ────────────────────────────────────────────
+   Esto NO es un capricho estético: es una corrección de coordenadas.
+
+   MEDIDO en Chrome 148 sobre este mismo reproductor, con zoom 0,85 en
+   .player-app:
+
+       dial-tira.getBoundingClientRect().width →  217,63   (px de PANTALLA)
+       dial-tira.clientWidth                   →  256      (px de MAQUETA)
+
+   O sea que bajo `zoom` esas dos familias de medida dejan de estar en la
+   misma escala. Y la física del dial las MEZCLA en las dos cuentas que le
+   importan: `centrar()` hace `scrollLeft + (rect del destino) − clientWidth/2`,
+   y el arrastre con mouse hace `scrollLeft = scrollInicio − (clientX − x0)`.
+   Con el zoom puesto, el imán apuntaría 15 % afuera de la marca y el giro
+   perdería la ganancia que se calibró contra la simulación del usuario
+   (ARRANQUE-LOGICA / CRITERIOS-DISENO §4.13b: una sesión entera).
+
+   Devolverle al dial la escala 1 restaura la igualdad rect == client —
+   verificado: con esta línea vuelven a dar 214 y 214— así que NINGUNA línea
+   de la física del dial hay que tocarla. Es el arreglo más barato posible:
+   una regla de CSS en lugar de meter mano en el código más caro del
+   proyecto.
+
+   Efecto lateral asumido: cuando el encaje aprieta, el dial queda apenas
+   más grande en proporción al resto. En un teclado de marcas de 1 px no se
+   nota, y de paso el blanco táctil no se achica justo en el teléfono donde
+   menos lugar hay. Si al mirarlo molesta, se saca esta regla y en su lugar
+   se corrigen las tres cuentas del dial dividiendo por var(--encaje). */
+#dial { zoom: calc(1 / var(--encaje, 1)); }
+
+/* ── El diagnóstico de ?encaje ───────────────────────────────────────
+   Un renglón en la esquina con los dos números y el alto que se midió.
+   Sólo aparece con ?encaje en la URL: es el mismo criterio que `?medir=dial`
+   —el instrumento no puede existir en el caso que mide—. */
+#encaje-diag {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 9998;
+  font: 10px/1.6 ui-monospace, monospace; color: #7a7a7a;
+  background: rgba(0,0,0,.82); text-align: center;
+  padding: 3px 6px calc(3px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
