@@ -73,6 +73,26 @@
    que los demás. */
 #listeners { margin-top: calc(6px * var(--aire)); }
 
+/* ── RESERVA DEL RENGLÓN DE OYENTES, con red para navegadores viejos ──
+   estilos5.css la escribe `min-height: 1lh`, y ese hueco es lo que impide
+   que al apagarse el contador suba el dial y el `.dial-aviso` caiga sobre
+   "Mandanos tu mensaje" — el bug que costó una sesión entera y que se
+   arregló el 26/08 con una captura del teléfono.
+
+   Pero `lh` es una unidad NUEVA: Chrome/Edge 109, Safari 16.4, Firefox 120,
+   Samsung Internet 21 — todos de 2023. En cualquier navegador anterior la
+   declaración es inválida, el navegador la TIRA ENTERA, el hueco vuelve a
+   cero y el bug reaparece tal cual. Un teléfono de 2021 sin actualizar lo
+   ve hoy.
+
+   Las dos líneas en este orden son la técnica de siempre: el navegador
+   viejo entiende la primera y descarta la segunda; el nuevo entiende las
+   dos y gana la última. `15px` es exactamente el valor que tenía antes de
+   pasar a `1lh`, así que el viejo queda como estaba y el nuevo no cambia
+   en nada. Riesgo cero, y no hay forma de probarlo desde acá: hace falta
+   un navegador anterior a 2023. */
+#listeners { min-height: 15px; min-height: 1lh; }
+
 /* ── 2) La escala ────────────────────────────────────────────────────
    Va sobre .player-app y no sobre el body: el relleno del body (los
    márgenes de pantalla) tiene que seguir midiendo píxeles de verdad, si no
