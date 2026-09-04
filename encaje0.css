@@ -133,6 +133,92 @@
    se corrigen las tres cuentas del dial dividiendo por var(--encaje). */
 #dial { zoom: calc(1 / var(--encaje, 1)); }
 
+/* ═══════════════════════════════════════════════════════════════════
+   EL DIAL EN FIREFOX — abría en una marca que no es "hoy"
+   ═══════════════════════════════════════════════════════════════════
+   Reportado por el usuario en Firefox de escritorio: *"el dial aparecía en
+   un preset que no es el último/estándar sino de los anteriores"*.
+   NO lo causa el encaje: pasa igual en index.html. Es un bug de producción,
+   y acá se prueba el arreglo.
+
+   MEDIDO con Firefox 144, Chromium 143 y WebKit de verdad (Playwright),
+   sobre index.html a 390×800:
+
+                    clientW  scrollWidth  tope   ::before  ::after
+       Firefox        324        592       268     162px    162px
+       Chromium       324        772       448     162px    162px
+       WebKit         287        736       449     143px    143px
+
+   Los dos espaciadores MIDEN lo mismo en los tres — 162 px cada uno —, pero
+   Firefox **no cuenta el `::after` en `scrollWidth`**: 772 − 592 = 180, que
+   es exactamente el espaciador (162) más el hueco entre marcas (18).
+
+   Consecuencia: `centrar()` necesita llevar la tira a 417 para poner "hoy"
+   bajo la aguja, y en Firefox el tope es 268. El navegador recorta el pedido,
+   la tira se queda a mitad de camino y abajo de la aguja queda la marca 6
+   —`blanco`— en vez de la 10. La marca ROJA sí es la correcta (aria-pressed
+   está en "hoy"), así que lo que se ve es una aguja apuntando a un preset
+   viejo mientras la piel puesta es la de hoy. Y si se roza el dial,
+   `bajoLaAguja()` aplica esa piel vieja de verdad.
+
+   EL ARREGLO: que el vacío de las puntas lo haga el RELLENO del contenedor
+   y no dos pseudoelementos. El relleno es parte de la caja, así que ningún
+   navegador puede dejarlo afuera del área desplazable.
+
+   Se probaron tres candidatos en los tres motores, con el dial real:
+       A  relleno 50%          Firefox OK · Chromium OK · WebKit OK
+       B  <span> de verdad     Firefox OK · Chromium OK · WebKit OK
+       C  ::after en px fijos  Firefox MAL — confirma que no es el porcentaje,
+                               es el pseudoelemento
+   Va A porque es la única que no toca ni el marcado ni el JS del dial —el
+   código más caro del proyecto—. B conserva el recorrido exacto de hoy (448
+   contra los 412 de A), pero obliga a tocar `prepararTira()`, que inserta su
+   propio espaciador real justo porque un `::after` se queda último. Si algún
+   día el giro del easter egg pide de vuelta esos 36 px, B es el camino.
+
+   ⚠️ `content: none` y no `display: none`: un pseudoelemento sin `content`
+   no se genera, mientras que uno oculto puede seguir contando en algunos
+   motores — que es la misma clase de trampa que este bug. */
+.dial-tira::before,
+.dial-tira::after { content: none; }
+.dial-tira { padding-left: 50%; padding-right: 50%; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   EL FADER DE VOLUMEN EN EL MOTOR DE SAFARI
+   ═══════════════════════════════════════════════════════════════════
+   MEDIDO arrastrando el fader de arriba abajo sobre index.html, con los
+   motores de verdad (Playwright, 03/09):
+
+       Firefox 144      0,80 → 0,13   anda
+       Chromium 143     0,80 → 0,13   anda
+       WebKit (Safari)  0,80 → 0,80   NO ANDA
+       y un TOQUE abajo del todo lo deja en 1,00: el gesto de BAJAR
+       el volumen lo SUBE AL MÁXIMO.
+
+   Esto lo ve hoy todo el que abre la radio en un iPhone, y explica el
+   pendiente de `HANDOFF-S2-CIERRE §4` mejor que "el blanco es chico": si el
+   control está acostado, no hay tamaño de blanco que lo arregle.
+
+   La clase la pone la SONDA del arranque —ver el bloque `[index0] ¿ESTE
+   NAVEGADOR SABE DIBUJAR UN FADER VERTICAL?` en index0.html—, que no pregunta
+   la versión del navegador sino que mide un range de prueba. Así esta regla
+   NO se aplica en Firefox ni en Chromium: verificado que ahí `slider-vertical`
+   ROMPE el fader (lo deja clavado en 0,5 en Firefox).
+
+   Con la regla puesta, WebKit pasa de 0,80 → 0,80 a 0,80 → 0,14 al arrastrar.
+   El toque simple queda impreciso (cae en ~0,4 donde debería dar ~0,12): el
+   arreglo completo de eso es un manejador de gesto en JS, anotado en el
+   informe como el paso siguiente. Pero el bug grave —tocar para bajar y que
+   suba al máximo— desaparece. */
+.sin-fader-vertical .vol-slider {
+  -webkit-appearance: slider-vertical;
+          appearance: slider-vertical;
+  /* La técnica vieja gobierna la orientación por `appearance`, así que el
+     writing-mode tiene que salir del camino o los dos mecanismos se pelean. */
+  writing-mode: horizontal-tb;
+  direction: ltr;
+}
+
 /* ── El diagnóstico de ?encaje ───────────────────────────────────────
    Un renglón en la esquina con los dos números y el alto que se midió.
    Sólo aparece con ?encaje en la URL: es el mismo criterio que `?medir=dial`

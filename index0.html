@@ -4810,6 +4810,49 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
 }
 
 /* ═════════════════════════════════════════════════════════════════
+   [index0] ¿ESTE NAVEGADOR SABE DIBUJAR UN FADER VERTICAL?
+   ═════════════════════════════════════════════════════════════════
+   MEDIDO con los motores de verdad (Playwright, 03/09), arrastrando el fader
+   de arriba abajo sobre index.html:
+
+       Firefox 144    0,80 -> 0,13   anda
+       Chromium 143   0,80 -> 0,13   anda
+       WebKit (Safari) 0,80 -> 0,80  NO ANDA
+       y peor: un TOQUE abajo del todo lo deja en 1,00 — el gesto de BAJAR
+       el volumen lo SUBE AL MAXIMO.
+
+   La causa es la de siempre: `writing-mode: vertical-lr` sobre un
+   input[type=range] es la tecnica NUEVA (Chrome 121, Firefox 129, los dos de
+   2024). El motor de Safari no la aplica, dibuja el control ACOSTADO adentro
+   de la caja de 63x118 y el eje del gesto queda cruzado. Esto lo ve HOY todo
+   el que abre la radio en un iPhone.
+
+   NO SE PREGUNTA LA VERSION DEL NAVEGADOR, SE LE PREGUNTA AL NAVEGADOR. Un
+   range con writing-mode vertical y sin tamano declarado: si el motor lo
+   entiende, su alto por defecto pasa a ser mayor que su ancho. Medido:
+
+       Firefox    20 x 160   parado
+       Chromium   16 x 129   parado
+       WebKit    129 x  18   ACOSTADO
+
+   ⚠️ `CSS.supports('-webkit-appearance','slider-vertical')` NO sirve de
+   sonda y se descarto con medicion: Chromium contesta true aunque ya no lo
+   aplica desde la 121, y Firefox contesta false aunque el fader le anda
+   perfecto. Las dos respuestas son la equivocada. La geometria no miente. */
+(function () {
+  try {
+    var s = document.createElement('input');
+    s.type = 'range';
+    s.style.cssText = 'position:absolute;left:-9999px;top:0;writing-mode:vertical-lr;';
+    document.body.appendChild(s);
+    var r = s.getBoundingClientRect();
+    var parado = r.height > r.width;
+    s.parentNode.removeChild(s);
+    if (!parado) document.documentElement.classList.add('sin-fader-vertical');
+  } catch (e) {}
+})();
+
+/* ═════════════════════════════════════════════════════════════════
    [index0] EL ENCAJE — que la composición entre siempre, sin scroll
    ═════════════════════════════════════════════════════════════════
    Publica DOS DATOS y nada más: --aire y --encaje, los dos números, sobre
