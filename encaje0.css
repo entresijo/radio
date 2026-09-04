@@ -219,6 +219,85 @@
   direction: ltr;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   EL GLOW DEL BOTÓN — un escalón menos, y mucho menos CPU
+   ═══════════════════════════════════════════════════════════════════
+   Reportado: *"podría bajársele un poco la intensidad, llama demasiado la
+   atención el eq"*. Y aparte: *"sube mucho el uso de CPU en PCs antiguas"*.
+   Las dos cosas se tocan en el mismo lugar, y por eso van juntas.
+
+   El botón encendido lleva DOS sombras cuyo radio de desenfoque depende de
+   `--nivel`, y la lejana llega a **118 px** a plena escala. El JS reescribe
+   `--nivel` en cada cuadro, así que el navegador **repinta un desenfoque de
+   118 px de radio sesenta veces por segundo**. El costo de un desenfoque crece
+   con el área, así que ése es el gasto grande de la pantalla.
+
+   Acá se baja UN escalón, no tres (la regla de la casa):
+     --glow-span2  92px → 64px   →  el halo lejano llega a 90 px y no a 118
+     --glow-a3     .17  → .12    →  y llega más tenue
+
+   El halo sigue existiendo y sigue pasando el anillo del vúmetro, que es para
+   lo que se agregó la segunda capa el 19/08. Lo que se recorta es el tramo
+   final, que es justo el que "llama demasiado la atención" — y el que más
+   cuesta pintar.
+
+   La otra mitad del ahorro está en el JS (ver el bloque del vúmetro en
+   index0.html): el nivel se publica en escalones de 1/50 y, si no cambió de
+   escalón, no se toca el DOM ni se redibuja el canvas.
+
+   ⚠️ Esto es un cambio ESTÉTICO y va a la vista. Si el halo queda corto,
+   los dos números vuelven a 92px y .17 y no se pierde nada más. */
+:root {
+  --glow-span2: 64px;
+  --glow-a3:    .12;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EL HISTORIAL SE ABRE HACIA ARRIBA — y deja de hacer scrollear la página
+   ═══════════════════════════════════════════════════════════════════
+   MEDIDO en los tres motores, abriendo el historial con los 8 temas que manda
+   el Worker. `scrollV` es cuánto se puede desplazar la PÁGINA con la lista
+   abierta, y debería ser cero:
+
+       viewport      Firefox   Chromium   WebKit
+       360x560         245        243       317
+       390x659         191        190       236
+       412x915          53         51       111
+       1280x800        115        113       167
+
+   O sea que **abrir el historial hace scrollear la página en todos los casos
+   medidos**, incluso en una pantalla holgada, y parte de la lista queda fuera
+   de cuadro por abajo. Es justo lo contrario de lo que pide el propio
+   comentario de `#history-list` en estilos5.css:
+
+     "Se abre EN EL LUGAR, sobre la composición, en vez de empujar todo hacia
+      abajo: si el reproductor tiene que sentirse app, abrir el historial no
+      puede reacomodar la pantalla. **Sube porque abajo no hay espacio.**"
+
+   La intención está escrita y es la correcta. Lo que no está es en el código:
+   la regla dice `top: calc(100% + 10px)`, que la cuelga hacia ABAJO. Es el
+   mismo caso que `--encaje` —documentado y no implementado—, y por eso se
+   arregla en la dirección que ya decidió el diseño, no en otra.
+
+   Abrir hacia arriba usa el espacio que de verdad hay: el botón "Historial"
+   vive a dos tercios de la composición, así que arriba sobra y abajo no.
+
+   `max-height: min(46vh, ...)` acota además contra el borde de arriba: el
+   `--hist-hueco` lo publica el JS con el espacio real que hay sobre el botón
+   (el mismo criterio de --aire y --encaje: el JS mide, el CSS decide). Si el
+   JS no corre, queda el 46vh de siempre y no se rompe nada. */
+#history-list {
+  top: auto;
+  bottom: calc(100% + 10px);
+  /* La entrada venía de abajo (translateY(-6px) → 0). Abriendo hacia arriba,
+     el gesto natural es al revés: nace un poco arriba y baja a su lugar. */
+  transform: translateX(-50%) translateY(6px);
+}
+#history-list.open {
+  transform: translateX(-50%) translateY(0);
+  max-height: min(46vh, var(--hist-hueco, 46vh));
+}
+
 /* ── El diagnóstico de ?encaje ───────────────────────────────────────
    Un renglón en la esquina con los dos números y el alto que se midió.
    Sólo aparece con ?encaje en la URL: es el mismo criterio que `?medir=dial`

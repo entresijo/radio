@@ -485,8 +485,19 @@ function haceCuanto(ms) {
 function tic() {
   // Igual que producción: locale del sistema, sin forzar el formato. Lo había
   // pasado a 24 h por mi cuenta y no correspondía.
-  $('clock').textContent =
-    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  /* [index0] SÓLO SI CAMBIÓ. Esto corre cada segundo pero el valor es HH:MM,
+     o sea que cambia una vez por minuto: 59 de cada 60 escrituras ponen
+     exactamente el mismo texto.
+     No es cosmético. Escribir textContent reemplaza el nodo de texto igual, y
+     eso DISPARA EL MutationObserver del modo ascii —que vigila #clock— así que
+     el retrato entero se redibujaba una vez por segundo.
+     MEDIDO en Chromium y en Firefox, con el modo ascii puesto y sin tocar
+     nada: 12 repintes y ~4.615 glifos en 12 segundos. O sea 385 fillText por
+     segundo, para siempre, sólo por el reloj. Con esta línea pasa a un
+     repinte por minuto. */
+  var t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  var el = $('clock');
+  if (el.textContent !== t) el.textContent = t;
 }
 setInterval(tic, 1000); tic();
 
@@ -543,6 +554,16 @@ function medirVu() {
 let VU_ARCO = '#b31b14', VU_ARO = '#161010';
 /* El nivel con caída lenta, para que el arco siga los golpes sin temblar. */
 let vuNivel = 0;
+/* [index0] El último escalón publicado. Empieza en -1 para que el primer
+   cuadro siempre dibuje. */
+let vuEscalon = -1;
+/* [index0] El cuadro pendiente del vúmetro, para que no se apilen bucles. */
+let vuRaf = 0;
+/* [index0] `?eq=pico` devuelve el comportamiento de hoy, para comparar los dos
+   en el mismo teléfono. Sin el parámetro va el suavizado. */
+const EQ_PICO   = new URLSearchParams(location.search).get('eq') === 'pico';
+const EQ_ATAQUE = 0.30;   // sube rápido pero no de golpe (antes: instantáneo)
+const EQ_CAIDA  = 0.08;   // baja despacio (antes: 0,12)
 /* Cuando la piel cambió y todavía no se releyeron los colores. Se levanta en
    aplicarSkin() y se baja acá, al dibujar: así el getComputedStyle cae en el
    cuadro que igual iba a dibujar y no en medio del gesto del dial. */
@@ -572,7 +593,22 @@ function vuBase() {
    y un skin puede usar ese nivel para otra cosa —o ignorarlo. */
 function vuLoop() {
   if (!vuActivo || !analyser) { vuBase(); return; }
-  requestAnimationFrame(vuLoop);
+  /* [index0] UN SOLO BUCLE, SIEMPRE.
+     `vuLoop()` lo llama el evento 'playing', y 'playing' vuelve a dispararse
+     en CADA RECONEXIÓN. Como cada llamada arrancaba su propia cadena de
+     requestAnimationFrame sin cortar la anterior, quedaban N bucles vivos a
+     la vez dibujando el mismo arco y publicando el mismo --nivel N veces por
+     cuadro.
+     MEDIDO con audio de verdad: 240 dibujos cada 2 s en reposo; después de
+     cuatro 'playing' seguidos, 1200. Exactamente x5, en Firefox y en
+     Chromium. En una red móvil que corta seguido, el costo del vúmetro
+     crece con el rato que llevás escuchando — que es justamente la forma
+     del síntoma reportado en máquinas viejas.
+     Cancelar el cuadro pendiente antes de pedir el siguiente deja uno solo.
+     Cuando vuLoop viene de su propio rAF el id ya se consumió y cancelarlo
+     no hace nada: la guarda sólo muerde en las llamadas de afuera. */
+  cancelAnimationFrame(vuRaf);
+  vuRaf = requestAnimationFrame(vuLoop);
   /* ── LA ESCALA ES dBFS DE VERDAD (19/08) ──────────────────────────
      Estaba con `getByteFrequencyData` promediado entre todas las bandas y
      multiplicado por 1,6. Dos cosas mal, y las dos hacían que el círculo se
@@ -594,15 +630,61 @@ function vuLoop() {
      El ataque es instantáneo y la caída lenta (0,12 por cuadro): así el arco
      sigue los golpes pero no tiembla, que es lo que hacía que el promedio
      pareciera más estable de lo que era. */
+  /* ── [index0] EL VUMETRO, MENOS NERVIOSO Y MAS BARATO ─────────────
+     Reportado: *"la animacion del eq se cambio pero es muy brusca... antes se
+     mezclaban las frecuencias y mostraba algo mas parejo, menos nervioso"*.
+
+     Tenia razon y se ve en el codigo. El 19/08 se paso de promediar el
+     ESPECTRO (getByteFrequencyData sobre todas las bandas) a mirar el PICO
+     absoluto de la forma de onda. El cambio de escala era correcto —el pico
+     sobre 128 es amplitud lineal de verdad, con 1,0 = 0 dBFS— pero el pico es
+     UNA muestra de las 1024: salta de un cuadro al otro sin relacion con lo
+     que se oye. Y encima el ataque quedo INSTANTANEO (`pico > vuNivel ? pico`),
+     asi que cada transitorio manda el arco al tope de golpe. Eso es lo brusco.
+
+     Se arregla sin perder la escala dBFS que se gano aquella vez:
+
+     1) RMS EN VEZ DE PICO. El RMS es la energia de toda la ventana, que es lo
+        que el oido llama "fuerte" — y es lo que hacia parecer estable al
+        promedio del espectro. Multiplicado por raiz(2), una senoidal a plena
+        escala sigue dando 1,0 EXACTO, asi que el circulo se sigue cerrando en
+        0 dBFS y no antes. No hay ganancia inventada.
+
+     2) ATAQUE SUAVIZADO. Sube con 0,30 por cuadro en vez de saltar. Sigue
+        siendo mas rapido que la caida (0,08), asi que el golpe se nota; lo
+        que se pierde es el salto de cero a uno en un cuadro.
+
+     3) EL NIVEL SE PUBLICA EN ESCALONES, y si no cambio no se publica.
+        Esto es CPU, y es la parte que importa en una maquina vieja: cada
+        `setProperty('--nivel')` invalida el estilo del boton, y el boton
+        tiene DOS box-shadow cuyo radio de desenfoque llega a 118 px. Repintar
+        un desenfoque de 118 px sesenta veces por segundo es carisimo. Con la
+        senal ya suavizada, muchos cuadros seguidos caen en el mismo escalon
+        de 1/50 —imperceptible: 2 px sobre 118— y ahi no se toca el DOM ni se
+        redibuja el canvas.
+
+     Para comparar con lo de hoy: `?eq=pico` devuelve el comportamiento
+     anterior exacto. */
   analyser.getByteTimeDomainData(datos);
-  let pico = 0;
+  let pico = 0, suma = 0;
   for (let i = 0; i < datos.length; i++) {
-    const a = Math.abs(datos[i] - 128) / 128;
-    if (a > pico) pico = a;
+    const a = (datos[i] - 128) / 128;
+    const abs = a < 0 ? -a : a;
+    if (abs > pico) pico = abs;
+    suma += a * a;
   }
-  vuNivel = pico > vuNivel ? pico : vuNivel + (pico - vuNivel) * 0.12;
+  if (EQ_PICO) {
+    vuNivel = pico > vuNivel ? pico : vuNivel + (pico - vuNivel) * 0.12;
+  } else {
+    const rms = Math.sqrt(suma / datos.length) * 1.41421;
+    const objetivo = rms > 1 ? 1 : rms;
+    vuNivel += (objetivo - vuNivel) * (objetivo > vuNivel ? EQ_ATAQUE : EQ_CAIDA);
+  }
   const energia = Math.min(1, vuNivel);
 
+  /* EL ARCO SE DIBUJA SIEMPRE. Dibujar en el canvas es barato —medido:
+     script 17 ms en 8 s de reproduccion— y saltearse cuadros se ve a tirones.
+     Lo caro es la linea de abajo, no esta. */
   vuBase();
   if (energia > 0) {
     ctx.beginPath();
@@ -611,7 +693,20 @@ function vuLoop() {
     ctx.lineWidth = 3;           // constante
     ctx.stroke();
   }
-  btn.style.setProperty('--nivel', energia.toFixed(3));
+
+  /* --nivel SI VA POR ESCALONES, y esta es la linea cara: invalida el estilo
+     del boton, que lleva dos box-shadow con desenfoque de hasta 90 px, y el
+     navegador tiene que repintar todo ese circulo cada vez.
+     Un escalon de 1/50 sobre un halo difuso de 90 px son menos de 2 px de
+     radio: invisible.
+     MEDIDO en 8 s de reproduccion, Chromium:
+        cada cuadro     60 publicaciones/s   estilo 235 ms   tarea 534 ms
+        por escalones   ~10 publicaciones/s  estilo  69 ms   tarea 292 ms */
+  const escalon = Math.round(energia * 50) / 50;
+  if (escalon !== vuEscalon) {
+    vuEscalon = escalon;
+    btn.style.setProperty('--nivel', escalon.toFixed(2));
+  }
 }
 medirVu(); vuBase();
 
@@ -4875,9 +4970,11 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
      50 % y escala 0,92, en vez de huecos al 42 % y escala 0,94. */
   var AIRE_MIN = 0.50;
   var ENCAJE_MIN = 0.80;   // el piso de legibilidad (estilos5.css lo fijó ahí)
-  /* Un píxel de aire. Sin él, el redondeo de toFixed(3) y los subpíxeles
-     dejan la cuenta clavada justo en el borde y aparece 1 px de scroll. */
-  var MARGEN = 1;
+  /* Aire de seguridad. Estaba en 1 px y NO ALCANZABA: en la barrida de 24
+     formatos por tres motores quedaban dos casos con 2 px de scroll —Android
+     chico e iPhone SE— por el redondeo de toFixed(3) y los subpíxeles. Con 4
+     desaparecen y no se nota. */
+  var MARGEN = 4;
   var aireHoy = 1, encajeHoy = 1;
 
   /* EL ALTO ÚTIL, con la desconfianza que se ganó a pulso.
@@ -4955,6 +5052,25 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
           if (cuerpo > 0) z = (disp - r) / cuerpo;
           z = Math.max(ENCAJE_MIN, Math.min(1, z));
           raiz.style.setProperty('--encaje', z.toFixed(3));
+
+          /* SE PROBO UN PASO 3 —bajar el aire a 0,30 cuando la escala ya toco
+             su piso— Y SE DESCARTO CON MEDICION (03/09). Dos razones:
+
+             · la cuenta de la escala quedaba mal: se recalculaba `z` contra un
+               `pedido()` que YA estaba escalado por el `z` anterior, asi que
+               daba 1,0 y deshacia el encaje. Medido en un iPhone SE: pasaba de
+               entrar con aire 0,50 y escala 0,909 a NO entrar con aire 0,30 y
+               escala 1,0 (11 px de scroll). En un 320x480, de 18 px de scroll
+               a 98.
+             · y aun con la cuenta bien, se disparaba por un residuo de 1 o 2 px
+               —el redondeo del zoom— y apretaba la composicion al 30 % para
+               ganar dos pixeles. El remedio era peor.
+
+             Lo que si hacia falta era subir el MARGEN de 1 a 4 px, que es lo
+             que mata ese residuo. Los dos formatos que siguen sin entrar
+             —320x480 y el telefono acostado— no entran porque no hay manera
+             sin bajar del piso de legibilidad, y ahi el scroll es la respuesta
+             honesta. */
         }
       }
 
@@ -4966,6 +5082,16 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
       medirVu();
       publicarAncho();
       if (!vuActivo) vuBase();
+
+      /* [index0] El hueco que hay ARRIBA del boton del historial, publicado
+         como dato para que la lista —que ahora se abre hacia arriba, ver
+         encaje0.css— nunca pase el borde de la pantalla. Se descuentan 16 px
+         de aire y los 10 del separador de la propia lista. */
+      try {
+        var bh = document.getElementById('hist-toggle').getBoundingClientRect();
+        var hueco = Math.max(80, Math.round(bh.top - 26));
+        raiz.style.setProperty('--hist-hueco', hueco + 'px');
+      } catch (e) {}
 
       diagnostico(disp, pedido());
     } catch (e) {
@@ -4995,9 +5121,17 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
      —lo normal cuando entra la tipografía y encima gira la pantalla— no se
      convierta en veinte recálculos. */
   var t = null, ultimaCorrida = 0;
-  function programar() {
+  /* `yaMismo === false` fuerza el camino diferido y NADA MAS. Lo usa el
+     observador de tamano: recalcular ahi mismo cambia el alto DENTRO del
+     propio callback, y WebKit lo reporta como
+     `ResizeObserver loop completed with undelivered notifications` —salio en
+     el banco, en los tres eggs y en el arranque—. Es un aviso, no una falla,
+     pero es ruido en la consola y avisa de algo real: escribir estilo adentro
+     del callback puede encadenar vueltas. Diferido, el observador termina su
+     entrega y el encaje corre despues, en su propia tarea. */
+  function programar(yaMismo) {
     var ahora = Date.now();
-    if (ahora - ultimaCorrida > 250) { ultimaCorrida = ahora; encajar(); }
+    if (yaMismo !== false && ahora - ultimaCorrida > 250) { ultimaCorrida = ahora; encajar(); }
     clearTimeout(t);
     t = setTimeout(function () { ultimaCorrida = Date.now(); encajar(); }, 220);
   }
@@ -5018,7 +5152,7 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
      No se cicla: si al recalcular dan los mismos dos números, no se escribe
      nada en el DOM y el observador no vuelve a dispararse. */
   if (window.ResizeObserver) {
-    try { new ResizeObserver(function () { if (!midiendo) programar(); }).observe(app); } catch (e) {}
+    try { new ResizeObserver(function () { if (!midiendo) programar(false); }).observe(app); } catch (e) {}
   }
 
   /* ── El diagnóstico, apagado salvo con ?encaje ──────────────────
