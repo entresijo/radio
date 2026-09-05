@@ -4,6 +4,46 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Entresijo Radio</title>
+<!-- ═══════════════════════════════════════════════════════════════════
+     ESTE ARCHIVO ES index0, PROMOVIDO A PRODUCCIÓN EL 03/09/2026.
+
+     Hasta el 27/08 index.html era una copia exacta de index5.html. Desde hoy
+     NO: index.html es una copia de index0.html, e index5.html quedó como
+     estaba (la versión anterior, para comparar). El respaldo del que estaba
+     al aire es backup/index-produccion-antes-de-index0-*.html, y volver
+     atrás es copiarlo encima de index.html y desplegar.
+
+     ⚠️ DEPENDE DE encaje0.css. Si ese archivo no carga, el reproductor anda
+     igual pero sin el encaje: --aire y --encaje valen 1 y la composición es
+     la de antes, al píxel.
+
+     ─────────────────────────────────────────────────────────────────
+     index0 — LA PRUEBA DEL ENCAJE. 02/09/2026.
+
+     Es index.html (o sea index5, que son el mismo archivo) con SEIS cambios
+     y ni uno más. Todos están marcados abajo con el rótulo [index0].
+
+     Por qué existe: la composición pide 751 px de alto en cualquier
+     pantalla —de 320 a 1280 px de ancho da el mismo número, medido— y el
+     alto útil de un teléfono con la barra del navegador va de 553 a 823 px.
+     En buena parte de la flota no entra, y lo que se pierde es el final:
+     el dial y el contador. En la app instalada entra en los teléfonos
+     grandes y queda al límite en los iPhone con muesca.
+
+     Los seis cambios:
+       1. este comentario
+       2. + encaje0.css (los dos números continuos: --aire y --encaje)
+       3. + orient="vertical" en el fader — Firefox viejo no entiende
+          `writing-mode` en un input range y lo dibuja acostado
+       4. medirVu() mide con offsetWidth y no con getBoundingClientRect:
+          bajo `zoom` las dos no dan lo mismo y el vúmetro se descentra
+       5. publicarAncho() y medirCabecera() se corrigen por el zoom
+       6. el motor del encaje, al final del script
+
+     NO toca: index.html, index5.html, estilos5.css ni skins5.css. Comparte
+     el CSS con el de producción a propósito — así lo único distinto entre
+     los dos es el encaje, que es lo que se está probando.
+     ═══════════════════════════════════════════════════════════════════ -->
 <!-- ── Modo app / íconos / pantalla bloqueada ──────────────────────────
      Ícono vinilo noir (el mismo que dibuja portada() para el MediaSession).
      "standalone" + metas de iOS: al "Agregar a la pantalla de inicio" abre
@@ -27,6 +67,9 @@
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "771bfed92de84873adfeaabd5c61546d"}'></script><!-- End Cloudflare Web Analytics -->
 <link rel="stylesheet" href="estilos5.css">
 <link rel="stylesheet" href="skins5.css">
+<!-- [index0] La hoja del encaje. Va ÚLTIMA para poder redefinir los tokens
+     de hueco de estilos5.css sin tocar ese archivo. -->
+<link rel="stylesheet" href="encaje0.css">
 </head>
 <!-- ═══════════════════════════════════════════════════════════════════
      index5 — copia de index4 del 16/08/2026, y desde acá se sigue.
@@ -93,8 +136,20 @@ try {
            ícono del parlante de abajo, y era una etiqueta más en una composición
            a la que ya le sobraban etiquetas. En index4 estaba oculto por CSS
            porque el marcado era de la otra sesión; acá se saca de raíz. -->
+      <!-- [index0] `orient="vertical"` es el mecanismo VIEJO de Firefox para
+           un range parado. El nuevo —`writing-mode: vertical-lr`, que es lo
+           que usa estilos5.css— recién existe en Firefox 129 (agosto 2024) y
+           en Chrome 121 (enero 2024). En un navegador anterior a eso la
+           declaración no hace nada y el fader se dibuja ACOSTADO adentro de
+           una caja de 63x118: se ve una barra rara y el gesto de arrastrar
+           para arriba no cambia el volumen. El atributo lo entienden los
+           Firefox viejos y los nuevos lo ignoran sin conflicto (dice lo
+           mismo que el writing-mode). No arregla al WebKit/Chrome viejo —eso
+           necesita `-webkit-appearance: slider-vertical`, que pelea con el
+           `appearance: none` del que cuelga todo el dibujo de la barra— pero
+           es la mitad del problema por cero riesgo. -->
       <input type="range" id="volume" class="vol-slider" min="0" max="1" step="0.01" value="0.8"
-             aria-label="Volumen">
+             orient="vertical" aria-label="Volumen">
       <span class="vol-icon">
         <!-- viewBox corrida 2,25: el dibujo va de x=3 a x=16,5, así que su
              centro visual está en 9,75 y no en 12. Sin esto se ve a la izquierda. -->
@@ -443,8 +498,19 @@ function haceCuanto(ms) {
 function tic() {
   // Igual que producción: locale del sistema, sin forzar el formato. Lo había
   // pasado a 24 h por mi cuenta y no correspondía.
-  $('clock').textContent =
-    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  /* [index0] SÓLO SI CAMBIÓ. Esto corre cada segundo pero el valor es HH:MM,
+     o sea que cambia una vez por minuto: 59 de cada 60 escrituras ponen
+     exactamente el mismo texto.
+     No es cosmético. Escribir textContent reemplaza el nodo de texto igual, y
+     eso DISPARA EL MutationObserver del modo ascii —que vigila #clock— así que
+     el retrato entero se redibujaba una vez por segundo.
+     MEDIDO en Chromium y en Firefox, con el modo ascii puesto y sin tocar
+     nada: 12 repintes y ~4.615 glifos en 12 segundos. O sea 385 fillText por
+     segundo, para siempre, sólo por el reloj. Con esta línea pasa a un
+     repinte por minuto. */
+  var t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  var el = $('clock');
+  if (el.textContent !== t) el.textContent = t;
 }
 setInterval(tic, 1000); tic();
 
@@ -455,8 +521,29 @@ setInterval(tic, 1000); tic();
 // sea el mismo en cualquier tamaño de pantalla.
 const VU_C = 85;
 let   VU_R = 70;
+/* [index0] EL FACTOR DE ESCALA, para las tres cuentas que lo necesitan.
+   `zoom` parte las medidas del DOM en dos familias que dejan de coincidir:
+   getBoundingClientRect() y los rangos de texto devuelven píxeles de
+   PANTALLA (ya escalados), mientras offsetWidth, clientWidth y scrollLeft
+   devuelven píxeles de MAQUETA (sin escalar). Medido en Chrome 148 con
+   zoom 0,85: el mismo elemento da 217,63 por un lado y 256 por el otro.
+   Cualquier cuenta que mezcle las dos familias, o que mida en pantalla para
+   escribir en maqueta, hay que dividirla por acá. */
+function zoomApp() {
+  const z = parseFloat(getComputedStyle(app).zoom);
+  return (z && isFinite(z) && z > 0) ? z : 1;
+}
+
 function medirVu() {
-  const w = document.querySelector('.play-outer').getBoundingClientRect().width;
+  /* [index0] `offsetWidth` y no `getBoundingClientRect().width`.
+     VU_R es un radio en COORDENADAS DEL CANVAS —el canvas mide 170x170 por
+     atributo y el zoom lo escala entero, igual que al botón—, así que el
+     número que va acá tiene que ser el de maqueta. Con el rect, en cuanto
+     el encaje aprieta el arco se dibujaría con un radio ya escalado sobre
+     un canvas que además se escala: el arco se metería ADENTRO del botón.
+     Es exactamente el bug del vúmetro descentrado de otras veces.
+     Sin zoom las dos lecturas dan lo mismo, así que el cambio es inocuo. */
+  const w = document.querySelector('.play-outer').offsetWidth;
   if (w) VU_R = Math.min(w / 2 + 9, 82);
 }
 
@@ -480,6 +567,16 @@ function medirVu() {
 let VU_ARCO = '#b31b14', VU_ARO = '#161010';
 /* El nivel con caída lenta, para que el arco siga los golpes sin temblar. */
 let vuNivel = 0;
+/* [index0] El último escalón publicado. Empieza en -1 para que el primer
+   cuadro siempre dibuje. */
+let vuEscalon = -1;
+/* [index0] El cuadro pendiente del vúmetro, para que no se apilen bucles. */
+let vuRaf = 0;
+/* [index0] `?eq=pico` devuelve el comportamiento de hoy, para comparar los dos
+   en el mismo teléfono. Sin el parámetro va el suavizado. */
+const EQ_PICO   = new URLSearchParams(location.search).get('eq') === 'pico';
+const EQ_ATAQUE = 0.30;   // sube rápido pero no de golpe (antes: instantáneo)
+const EQ_CAIDA  = 0.08;   // baja despacio (antes: 0,12)
 /* Cuando la piel cambió y todavía no se releyeron los colores. Se levanta en
    aplicarSkin() y se baja acá, al dibujar: así el getComputedStyle cae en el
    cuadro que igual iba a dibujar y no en medio del gesto del dial. */
@@ -509,7 +606,22 @@ function vuBase() {
    y un skin puede usar ese nivel para otra cosa —o ignorarlo. */
 function vuLoop() {
   if (!vuActivo || !analyser) { vuBase(); return; }
-  requestAnimationFrame(vuLoop);
+  /* [index0] UN SOLO BUCLE, SIEMPRE.
+     `vuLoop()` lo llama el evento 'playing', y 'playing' vuelve a dispararse
+     en CADA RECONEXIÓN. Como cada llamada arrancaba su propia cadena de
+     requestAnimationFrame sin cortar la anterior, quedaban N bucles vivos a
+     la vez dibujando el mismo arco y publicando el mismo --nivel N veces por
+     cuadro.
+     MEDIDO con audio de verdad: 240 dibujos cada 2 s en reposo; después de
+     cuatro 'playing' seguidos, 1200. Exactamente x5, en Firefox y en
+     Chromium. En una red móvil que corta seguido, el costo del vúmetro
+     crece con el rato que llevás escuchando — que es justamente la forma
+     del síntoma reportado en máquinas viejas.
+     Cancelar el cuadro pendiente antes de pedir el siguiente deja uno solo.
+     Cuando vuLoop viene de su propio rAF el id ya se consumió y cancelarlo
+     no hace nada: la guarda sólo muerde en las llamadas de afuera. */
+  cancelAnimationFrame(vuRaf);
+  vuRaf = requestAnimationFrame(vuLoop);
   /* ── LA ESCALA ES dBFS DE VERDAD (19/08) ──────────────────────────
      Estaba con `getByteFrequencyData` promediado entre todas las bandas y
      multiplicado por 1,6. Dos cosas mal, y las dos hacían que el círculo se
@@ -531,15 +643,61 @@ function vuLoop() {
      El ataque es instantáneo y la caída lenta (0,12 por cuadro): así el arco
      sigue los golpes pero no tiembla, que es lo que hacía que el promedio
      pareciera más estable de lo que era. */
+  /* ── [index0] EL VUMETRO, MENOS NERVIOSO Y MAS BARATO ─────────────
+     Reportado: *"la animacion del eq se cambio pero es muy brusca... antes se
+     mezclaban las frecuencias y mostraba algo mas parejo, menos nervioso"*.
+
+     Tenia razon y se ve en el codigo. El 19/08 se paso de promediar el
+     ESPECTRO (getByteFrequencyData sobre todas las bandas) a mirar el PICO
+     absoluto de la forma de onda. El cambio de escala era correcto —el pico
+     sobre 128 es amplitud lineal de verdad, con 1,0 = 0 dBFS— pero el pico es
+     UNA muestra de las 1024: salta de un cuadro al otro sin relacion con lo
+     que se oye. Y encima el ataque quedo INSTANTANEO (`pico > vuNivel ? pico`),
+     asi que cada transitorio manda el arco al tope de golpe. Eso es lo brusco.
+
+     Se arregla sin perder la escala dBFS que se gano aquella vez:
+
+     1) RMS EN VEZ DE PICO. El RMS es la energia de toda la ventana, que es lo
+        que el oido llama "fuerte" — y es lo que hacia parecer estable al
+        promedio del espectro. Multiplicado por raiz(2), una senoidal a plena
+        escala sigue dando 1,0 EXACTO, asi que el circulo se sigue cerrando en
+        0 dBFS y no antes. No hay ganancia inventada.
+
+     2) ATAQUE SUAVIZADO. Sube con 0,30 por cuadro en vez de saltar. Sigue
+        siendo mas rapido que la caida (0,08), asi que el golpe se nota; lo
+        que se pierde es el salto de cero a uno en un cuadro.
+
+     3) EL NIVEL SE PUBLICA EN ESCALONES, y si no cambio no se publica.
+        Esto es CPU, y es la parte que importa en una maquina vieja: cada
+        `setProperty('--nivel')` invalida el estilo del boton, y el boton
+        tiene DOS box-shadow cuyo radio de desenfoque llega a 118 px. Repintar
+        un desenfoque de 118 px sesenta veces por segundo es carisimo. Con la
+        senal ya suavizada, muchos cuadros seguidos caen en el mismo escalon
+        de 1/50 —imperceptible: 2 px sobre 118— y ahi no se toca el DOM ni se
+        redibuja el canvas.
+
+     Para comparar con lo de hoy: `?eq=pico` devuelve el comportamiento
+     anterior exacto. */
   analyser.getByteTimeDomainData(datos);
-  let pico = 0;
+  let pico = 0, suma = 0;
   for (let i = 0; i < datos.length; i++) {
-    const a = Math.abs(datos[i] - 128) / 128;
-    if (a > pico) pico = a;
+    const a = (datos[i] - 128) / 128;
+    const abs = a < 0 ? -a : a;
+    if (abs > pico) pico = abs;
+    suma += a * a;
   }
-  vuNivel = pico > vuNivel ? pico : vuNivel + (pico - vuNivel) * 0.12;
+  if (EQ_PICO) {
+    vuNivel = pico > vuNivel ? pico : vuNivel + (pico - vuNivel) * 0.12;
+  } else {
+    const rms = Math.sqrt(suma / datos.length) * 1.41421;
+    const objetivo = rms > 1 ? 1 : rms;
+    vuNivel += (objetivo - vuNivel) * (objetivo > vuNivel ? EQ_ATAQUE : EQ_CAIDA);
+  }
   const energia = Math.min(1, vuNivel);
 
+  /* EL ARCO SE DIBUJA SIEMPRE. Dibujar en el canvas es barato —medido:
+     script 17 ms en 8 s de reproduccion— y saltearse cuadros se ve a tirones.
+     Lo caro es la linea de abajo, no esta. */
   vuBase();
   if (energia > 0) {
     ctx.beginPath();
@@ -548,7 +706,20 @@ function vuLoop() {
     ctx.lineWidth = 3;           // constante
     ctx.stroke();
   }
-  btn.style.setProperty('--nivel', energia.toFixed(3));
+
+  /* --nivel SI VA POR ESCALONES, y esta es la linea cara: invalida el estilo
+     del boton, que lleva dos box-shadow con desenfoque de hasta 90 px, y el
+     navegador tiene que repintar todo ese circulo cada vez.
+     Un escalon de 1/50 sobre un halo difuso de 90 px son menos de 2 px de
+     radio: invisible.
+     MEDIDO en 8 s de reproduccion, Chromium:
+        cada cuadro     60 publicaciones/s   estilo 235 ms   tarea 534 ms
+        por escalones   ~10 publicaciones/s  estilo  69 ms   tarea 292 ms */
+  const escalon = Math.round(energia * 50) / 50;
+  if (escalon !== vuEscalon) {
+    vuEscalon = escalon;
+    btn.style.setProperty('--nivel', escalon.toFixed(2));
+  }
 }
 medirVu(); vuBase();
 
@@ -1615,8 +1786,12 @@ $('station-name').addEventListener('click', () => {
      borde de arriba y el botón se mueven juntos, así que la distancia entre
      los dos no depende del margen. Medir sin tocar nada da lo mismo. */
   function medirCabecera() {
-    return document.querySelector('.core-ui').getBoundingClientRect().top
-         - app.getBoundingClientRect().top;
+    /* [index0] /zoomApp(): la resta de dos rects da píxeles de PANTALLA, y
+       el número se usa después como una medida de la composición (que vive
+       adentro del zoom). Sin dividir, el ancla de las pieles se corre lo
+       mismo que aprieta el encaje. */
+    return (document.querySelector('.core-ui').getBoundingClientRect().top
+         - app.getBoundingClientRect().top) / zoomApp();
   }
 
   /* El ancla se mide SIEMPRE con la piel base, sacando la piel puesta un
@@ -4652,7 +4827,13 @@ function publicarAncho() {
      la R de "…CON AMOR", que es la línea a la que se alinea todo. */
   const r = document.createRange();
   r.selectNodeContents(descEl);
-  const w = Math.round(r.getBoundingClientRect().width);
+  /* [index0] /zoomApp(): el rango se mide en píxeles de PANTALLA pero
+     --hist-ancho se declara en la RAÍZ (afuera del zoom) y se consume
+     adentro. Sin dividir, con el encaje apretado el ancho de referencia
+     saldría achicado dos veces y se desalinearían las tres cosas que
+     gobierna: el historial, el ancho del título y la separación del
+     volumen. Es el sistema de alineación entero. */
+  const w = Math.round(r.getBoundingClientRect().width / zoomApp());
   if (w) document.documentElement.style.setProperty('--hist-ancho', w + 'px');
 }
 
@@ -4735,6 +4916,281 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
   const s = document.createElement('script');
   s.src = 'medir-dial.js'; document.body.appendChild(s);
 }
+
+/* ═════════════════════════════════════════════════════════════════
+   [index0] ¿ESTE NAVEGADOR SABE DIBUJAR UN FADER VERTICAL?
+   ═════════════════════════════════════════════════════════════════
+   MEDIDO con los motores de verdad (Playwright, 03/09), arrastrando el fader
+   de arriba abajo sobre index.html:
+
+       Firefox 144    0,80 -> 0,13   anda
+       Chromium 143   0,80 -> 0,13   anda
+       WebKit (Safari) 0,80 -> 0,80  NO ANDA
+       y peor: un TOQUE abajo del todo lo deja en 1,00 — el gesto de BAJAR
+       el volumen lo SUBE AL MAXIMO.
+
+   La causa es la de siempre: `writing-mode: vertical-lr` sobre un
+   input[type=range] es la tecnica NUEVA (Chrome 121, Firefox 129, los dos de
+   2024). El motor de Safari no la aplica, dibuja el control ACOSTADO adentro
+   de la caja de 63x118 y el eje del gesto queda cruzado. Esto lo ve HOY todo
+   el que abre la radio en un iPhone.
+
+   NO SE PREGUNTA LA VERSION DEL NAVEGADOR, SE LE PREGUNTA AL NAVEGADOR. Un
+   range con writing-mode vertical y sin tamano declarado: si el motor lo
+   entiende, su alto por defecto pasa a ser mayor que su ancho. Medido:
+
+       Firefox    20 x 160   parado
+       Chromium   16 x 129   parado
+       WebKit    129 x  18   ACOSTADO
+
+   ⚠️ `CSS.supports('-webkit-appearance','slider-vertical')` NO sirve de
+   sonda y se descarto con medicion: Chromium contesta true aunque ya no lo
+   aplica desde la 121, y Firefox contesta false aunque el fader le anda
+   perfecto. Las dos respuestas son la equivocada. La geometria no miente. */
+(function () {
+  try {
+    var s = document.createElement('input');
+    s.type = 'range';
+    s.style.cssText = 'position:absolute;left:-9999px;top:0;writing-mode:vertical-lr;';
+    document.body.appendChild(s);
+    var r = s.getBoundingClientRect();
+    var parado = r.height > r.width;
+    s.parentNode.removeChild(s);
+    if (!parado) document.documentElement.classList.add('sin-fader-vertical');
+  } catch (e) {}
+})();
+
+/* ═════════════════════════════════════════════════════════════════
+   [index0] EL ENCAJE — que la composición entre siempre, sin scroll
+   ═════════════════════════════════════════════════════════════════
+   Publica DOS DATOS y nada más: --aire y --encaje, los dos números, sobre
+   <html>. Quién decide qué hacer con ellos es encaje0.css. Es la misma
+   division de trabajo que ya rige para --nivel, --vol-pct y --giro-vel:
+   el JS mide, el CSS diseña.
+
+   No hay ningún punto de corte por ancho acá adentro. Se mide el alto que
+   hay y se aprieta lo justo — en una pantalla holgada los dos números
+   quedan en 1 y el reproductor es idéntico al de produccion, al pixel.
+   ═════════════════════════════════════════════════════════════════ */
+(function () {
+  var raiz = document.documentElement;
+  /* EL PISO DE LOS HUECOS. 0,50 y no menos, y el número no es arbitrario:
+     es exactamente donde --baja llega a cero (encaje0.css lo escribió así).
+     Se probó 0,42 y encajaba en un px menos de escala, pero deja la
+     composición demasiado junta — y las distancias entre elementos son
+     de lo que más se nota en este diseño. Con 0,50 el reparto entre
+     "juntarse" y "achicarse" queda parejo: en un iPhone SE da huecos al
+     50 % y escala 0,92, en vez de huecos al 42 % y escala 0,94. */
+  var AIRE_MIN = 0.50;
+  var ENCAJE_MIN = 0.80;   // el piso de legibilidad (estilos5.css lo fijó ahí)
+  /* Aire de seguridad. Estaba en 1 px y NO ALCANZABA: en la barrida de 24
+     formatos por tres motores quedaban dos casos con 2 px de scroll —Android
+     chico e iPhone SE— por el redondeo de toFixed(3) y los subpíxeles. Con 4
+     desaparecen y no se nota. */
+  var MARGEN = 4;
+  var aireHoy = 1, encajeHoy = 1;
+
+  /* EL ALTO ÚTIL, con la desconfianza que se ganó a pulso.
+     El navegador MIENTE mientras la barra de direcciones entra o sale:
+     medido el 17/08 en un teléfono real, reportó 1007 px con ~728 px en
+     pantalla, y ese es el hipo que hizo abandonar el centrado (§4.7 de
+     CRITERIOS-DISENO). visualViewport sigue lo que se VE, así que se toma
+     el MENOR de los dos: equivocarse para abajo aprieta de más —se ve un
+     poco chico y se lee igual—; equivocarse para arriba corta, que es
+     justamente lo que se está arreglando.
+
+     El precio del `min`, y por qué se paga igual: si una de las dos fuentes
+     se queda vieja, la composición NO VUELVE A CRECER hasta que se
+     actualice. Se vio en el banco —con la pestaña sin pintar,
+     visualViewport se congela en el alto anterior y el reproductor se
+     quedó chico al agrandar la ventana—. En un teléfono de verdad las dos
+     se mueven juntas, y sobre todo: quedarse chico de más es cosmético,
+     quedarse grande de más CORTA. El error va del lado barato. */
+  function altoUtil() {
+    var a = window.innerHeight || 0;
+    var vv = window.visualViewport;
+    var b = (vv && vv.height) ? vv.height : a;
+    return Math.max(320, Math.min(a || b, b || a));
+  }
+
+  /* Lo que la composición PIDE: su alto más el relleno del body, que es
+     parte del encaje aunque no sea parte del dibujo. */
+  function pedido() {
+    var cs = getComputedStyle(document.body);
+    return app.getBoundingClientRect().height +
+           parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  }
+  function rellenoBody() {
+    var cs = getComputedStyle(document.body);
+    return parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  }
+
+  var midiendo = false;
+
+  function encajar() {
+    if (midiendo) return;
+    midiendo = true;
+    try {
+      var disp = altoUtil() - MARGEN;
+
+      /* Paso 0 — sin apretar nada. Se escribe y se mide en la MISMA tarea,
+         así que el navegador no llega a pintar el estado intermedio: no hay
+         parpadeo aunque acá se prueben tres configuraciones seguidas. */
+      raiz.style.setProperty('--aire', '1');
+      raiz.style.setProperty('--encaje', '1');
+      var p = pedido();
+      var aire = 1, z = 1;
+
+      if (p > disp) {
+        /* Paso 1 — los huecos. No se salta al mínimo: se pregunta cuánto
+           RINDE el mínimo y se interpola para gastar sólo lo que falta. En
+           un teléfono al que le faltan 20 px la composición se junta 20 px,
+           no 150. */
+        raiz.style.setProperty('--aire', String(AIRE_MIN));
+        var pMin = pedido();
+        var rinde = p - pMin;
+        if (rinde > 0) {
+          var falta = p - disp;
+          aire = (falta >= rinde) ? AIRE_MIN : 1 - (falta / rinde) * (1 - AIRE_MIN);
+        }
+        raiz.style.setProperty('--aire', aire.toFixed(3));
+        p = pedido();
+
+        if (p > disp) {
+          /* Paso 2 — la escala. El relleno del body vive AFUERA de
+             .player-app, así que no lo toca el zoom: se descuenta de los dos
+             lados antes de dividir, o el resultado queda corto. */
+          var r = rellenoBody();
+          var cuerpo = p - r;
+          if (cuerpo > 0) z = (disp - r) / cuerpo;
+          z = Math.max(ENCAJE_MIN, Math.min(1, z));
+          raiz.style.setProperty('--encaje', z.toFixed(3));
+
+          /* SE PROBO UN PASO 3 —bajar el aire a 0,30 cuando la escala ya toco
+             su piso— Y SE DESCARTO CON MEDICION (03/09). Dos razones:
+
+             · la cuenta de la escala quedaba mal: se recalculaba `z` contra un
+               `pedido()` que YA estaba escalado por el `z` anterior, asi que
+               daba 1,0 y deshacia el encaje. Medido en un iPhone SE: pasaba de
+               entrar con aire 0,50 y escala 0,909 a NO entrar con aire 0,30 y
+               escala 1,0 (11 px de scroll). En un 320x480, de 18 px de scroll
+               a 98.
+             · y aun con la cuenta bien, se disparaba por un residuo de 1 o 2 px
+               —el redondeo del zoom— y apretaba la composicion al 30 % para
+               ganar dos pixeles. El remedio era peor.
+
+             Lo que si hacia falta era subir el MARGEN de 1 a 4 px, que es lo
+             que mata ese residuo. Los dos formatos que siguen sin entrar
+             —320x480 y el telefono acostado— no entran porque no hay manera
+             sin bajar del piso de legibilidad, y ahi el scroll es la respuesta
+             honesta. */
+        }
+      }
+
+      aireHoy = aire; encajeHoy = z;
+
+      /* Cambió la escala: las tres medidas que dependen de ella hay que
+         rehacerlas, y en este orden. Ninguna cambia el alto, así que no
+         hace falta volver a encajar. */
+      medirVu();
+      publicarAncho();
+      if (!vuActivo) vuBase();
+
+      /* [index0] El hueco que hay ARRIBA del boton del historial, publicado
+         como dato para que la lista —que ahora se abre hacia arriba, ver
+         encaje0.css— nunca pase el borde de la pantalla. Se descuentan 16 px
+         de aire y los 10 del separador de la propia lista. */
+      try {
+        var bh = document.getElementById('hist-toggle').getBoundingClientRect();
+        var hueco = Math.max(80, Math.round(bh.top - 26));
+        raiz.style.setProperty('--hist-hueco', hueco + 'px');
+      } catch (e) {}
+
+      diagnostico(disp, pedido());
+    } catch (e) {
+      /* Ante cualquier problema, el encaje se apaga solo y queda el
+         reproductor de produccion. Nunca puede ser peor que no estar. */
+      try { raiz.style.setProperty('--aire', '1'); raiz.style.setProperty('--encaje', '1'); } catch (e2) {}
+    }
+    midiendo = false;
+  }
+
+  /* SE ENCAJA DOS VECES: al toque y al rato. No es redundancia.
+
+     · AL TOQUE (flanco de subida) porque un `setTimeout` no es una promesa:
+       el navegador lo estrangula cuando la pestaña no está a la vista, y
+       medido en este mismo banco con la pestaña oculta el diferido NO
+       LLEGÓ A CORRER NUNCA — la composición se quedó con el encaje viejo
+       después de dos cambios de tamaño. Si el único camino es el diferido,
+       el encaje es tan confiable como el reloj del navegador, que no lo es.
+       Además al girar el teléfono se acomoda en el acto y no 160 ms después.
+
+     · AL RATO (flanco de bajada) porque la primera medida cae en mitad de
+       la animación de la barra de direcciones, que es justo el momento en
+       que el navegador miente sobre el alto (§4.7). La segunda corre con
+       todo quieto y corrige.
+
+     Entre las dos hay 250 ms de guarda para que una ráfaga de veinte avisos
+     —lo normal cuando entra la tipografía y encima gira la pantalla— no se
+     convierta en veinte recálculos. */
+  var t = null, ultimaCorrida = 0;
+  /* `yaMismo === false` fuerza el camino diferido y NADA MAS. Lo usa el
+     observador de tamano: recalcular ahi mismo cambia el alto DENTRO del
+     propio callback, y WebKit lo reporta como
+     `ResizeObserver loop completed with undelivered notifications` —salio en
+     el banco, en los tres eggs y en el arranque—. Es un aviso, no una falla,
+     pero es ruido en la consola y avisa de algo real: escribir estilo adentro
+     del callback puede encadenar vueltas. Diferido, el observador termina su
+     entrega y el encaje corre despues, en su propia tarea. */
+  function programar(yaMismo) {
+    var ahora = Date.now();
+    if (yaMismo !== false && ahora - ultimaCorrida > 250) { ultimaCorrida = ahora; encajar(); }
+    clearTimeout(t);
+    t = setTimeout(function () { ultimaCorrida = Date.now(); encajar(); }, 220);
+  }
+
+  addEventListener('resize', programar);
+  addEventListener('orientationchange', programar);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', programar);
+  addEventListener('load', programar);
+  /* Volver a la pestaña: mientras estuvo atrás pudo cambiar todo —el alto,
+     la piel, el tema— y encima ahí es donde los timers estuvieron dormidos. */
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) programar(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(programar);
+
+  /* El alto de la composición también cambia sin que cambie la ventana:
+     al elegir una piel en el dial, al prender el contador de oyentes, al
+     entrar un título largo. Un observador lo cubre todo sin tener que
+     enganchar cada caso a mano.
+     No se cicla: si al recalcular dan los mismos dos números, no se escribe
+     nada en el DOM y el observador no vuelve a dispararse. */
+  if (window.ResizeObserver) {
+    try { new ResizeObserver(function () { if (!midiendo) programar(false); }).observe(app); } catch (e) {}
+  }
+
+  /* ── El diagnóstico, apagado salvo con ?encaje ──────────────────
+     Mismo criterio que `?medir=dial`: un instrumento que existe siempre
+     puede romper el caso que mide. Sirve para leer los números en el
+     teléfono, que es donde vive el problema. */
+  var diagEl = null, verDiag = false;
+  try { verDiag = new URLSearchParams(location.search).has('encaje'); } catch (e) {}
+  function diagnostico(disp, ped) {
+    if (!verDiag) return;
+    if (!diagEl) {
+      diagEl = document.createElement('div');
+      diagEl.id = 'encaje-diag';
+      document.body.appendChild(diagEl);
+    }
+    diagEl.textContent =
+      'pantalla ' + Math.round(disp) + ' · pide ' + Math.round(ped) +
+      ' · aire ' + aireHoy.toFixed(2) + ' · encaje ' + encajeHoy.toFixed(2) +
+      ' · ' + innerWidth + '×' + innerHeight +
+      (matchMedia('(display-mode: standalone)').matches ? ' · app' : ' · navegador');
+  }
+
+  encajar();
+})();
+
 setInterval(traerMeta, META_MS);
 setInterval(() => { if (!simulando && ultimoDato && ultimoDato.verified && !ultimoDato.isLive) repintar(); }, 30000);
 </script>
