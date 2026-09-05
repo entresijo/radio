@@ -9,9 +9,10 @@
 
      Hasta el 27/08 index.html era una copia exacta de index5.html. Desde hoy
      NO: index.html es una copia de index0.html, e index5.html quedó como
-     estaba (la versión anterior, para comparar). El respaldo del que estaba
-     al aire es backup/index-produccion-antes-de-index0-*.html, y volver
-     atrás es copiarlo encima de index.html y desplegar.
+     estaba (la versión anterior, para comparar — y es la base desde la que
+     se genera index0). El respaldo del que estaba al aire es
+     backup/index-produccion-antes-de-index0-*.html, y volver atrás es
+     copiarlo encima de index.html y desplegar.
 
      ⚠️ DEPENDE DE encaje0.css. Si ese archivo no carga, el reproductor anda
      igual pero sin el encaje: --aire y --encaje valen 1 y la composición es
@@ -1931,7 +1932,33 @@ $('station-name').addEventListener('click', () => {
   const SOLO_AL_TOCAR = params.get('dial') === 'tap';
   tira.addEventListener('scroll', () => {
     if (SOLO_AL_TOCAR) return;
-    if (!listo || pendiente || rodando) return;
+    /* [index0] Y TAMPOCO MIENTRAS DURA UN EFECTO.
+       Reportado: *"en el efecto de la pantalla que se gira, el preset que
+       sortea no permanece: despues del efecto vuelve solo al default"*.
+
+       MEDIDO con los cuatro efectos (Chromium, muestreando localStorage y los
+       eventos de scroll de la tira):
+           ?egg=papelitos   0 scrolls   guarda 'fantasma'   la piel QUEDA
+           ?egg=matrix      0 scrolls   guarda 'fantasma'   la piel QUEDA
+           ?egg=estatica    0 scrolls   guarda 'fantasma'   la piel QUEDA
+           ?egg=giro        2 scrolls   guarda ''           LA PIEL SE PIERDE
+
+       El giro es el UNICO que mueve la tira al terminar --gira la caja entera
+       con rotateY y despues la reacomoda--, y ese desplazamiento dispara este
+       manejador. `aplicar(bajoLaAguja(), true)` toma la marca que quedo bajo
+       la aguja --"hoy", o sea ninguna piel--, llama a `limpiarFantasma()` y
+       ademas GUARDA `entresijo:skin = ''`. O sea que no solo se pierde en
+       pantalla: se borra el hallazgo.
+
+       `rodando` ya cubre el tiron del gesto, pero no el efecto que viene
+       despues. `en-efecto` es la clase que marca exactamente esa ventana --se
+       pone al empezar cualquier efecto y se saca 3,4 s despues de terminar--,
+       asi que es la guarda que faltaba.
+
+       Tocar una marca sigue funcionando: eso va por el manejador de `click`,
+       que es otro camino y es el modo deliberado de salir de una piel del
+       easter egg. */
+    if (!listo || pendiente || rodando || app.classList.contains('en-efecto')) return;
     pendiente = true;
     requestAnimationFrame(() => { pendiente = false; aplicar(bajoLaAguja(), true); develar(); });
   }, { passive: true });

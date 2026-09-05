@@ -1918,7 +1918,33 @@ $('station-name').addEventListener('click', () => {
   const SOLO_AL_TOCAR = params.get('dial') === 'tap';
   tira.addEventListener('scroll', () => {
     if (SOLO_AL_TOCAR) return;
-    if (!listo || pendiente || rodando) return;
+    /* [index0] Y TAMPOCO MIENTRAS DURA UN EFECTO.
+       Reportado: *"en el efecto de la pantalla que se gira, el preset que
+       sortea no permanece: despues del efecto vuelve solo al default"*.
+
+       MEDIDO con los cuatro efectos (Chromium, muestreando localStorage y los
+       eventos de scroll de la tira):
+           ?egg=papelitos   0 scrolls   guarda 'fantasma'   la piel QUEDA
+           ?egg=matrix      0 scrolls   guarda 'fantasma'   la piel QUEDA
+           ?egg=estatica    0 scrolls   guarda 'fantasma'   la piel QUEDA
+           ?egg=giro        2 scrolls   guarda ''           LA PIEL SE PIERDE
+
+       El giro es el UNICO que mueve la tira al terminar --gira la caja entera
+       con rotateY y despues la reacomoda--, y ese desplazamiento dispara este
+       manejador. `aplicar(bajoLaAguja(), true)` toma la marca que quedo bajo
+       la aguja --"hoy", o sea ninguna piel--, llama a `limpiarFantasma()` y
+       ademas GUARDA `entresijo:skin = ''`. O sea que no solo se pierde en
+       pantalla: se borra el hallazgo.
+
+       `rodando` ya cubre el tiron del gesto, pero no el efecto que viene
+       despues. `en-efecto` es la clase que marca exactamente esa ventana --se
+       pone al empezar cualquier efecto y se saca 3,4 s despues de terminar--,
+       asi que es la guarda que faltaba.
+
+       Tocar una marca sigue funcionando: eso va por el manejador de `click`,
+       que es otro camino y es el modo deliberado de salir de una piel del
+       easter egg. */
+    if (!listo || pendiente || rodando || app.classList.contains('en-efecto')) return;
     pendiente = true;
     requestAnimationFrame(() => { pendiente = false; aplicar(bajoLaAguja(), true); develar(); });
   }, { passive: true });
