@@ -57,15 +57,28 @@
   --gap-meta:     calc(12px * var(--aire));   /* título → historial */
   --gap-hist-ws:  calc(30px * var(--aire));   /* lo que suena → la raya */
   --gap-dial-fin: calc(20px * var(--aire));   /* la raya → el dial */
-  --gap-body-v:   calc(20px * var(--aire));   /* margen de la pantalla */
 
-  /* --baja es el que más rinde y el que menos cuesta: son 44 px de puro
-     descenso que existen para que la composición no nazca pegada al borde
-     (CRITERIOS-DISENO §4.7). Cuando falta lugar, ese lujo es lo primero
-     que sobra, así que cede MÁS RÁPIDO que el resto: al 50 % de aire ya
-     está en cero. La composición nunca queda pegada arriba igual, porque
-     --gap-body-v sigue debajo. */
-  --baja: calc(44px * max(0, (var(--aire) - .5)) * 2);
+  /* ── EL MARGEN DE PANTALLA ESCALA TAMBIÉN ────────────────────────────
+     Estos dos son el relleno del `body`, o sea que viven AFUERA de
+     `.player-app` y el `zoom` no los toca. Si sólo dependieran de --aire,
+     al achicar la composición el margen de arriba se quedaría del tamaño
+     original y quedaría proporcionalmente enorme: ya no sería la misma
+     composición más chica, sería otra.
+
+     Multiplicándolos también por --encaje, TODO baja en la misma medida y
+     la composición se conserva. Y de yapa la cuenta del motor se vuelve
+     exacta: `pedido(z) = pedido(1) × z`, así que la escala se despeja de
+     una división y no hace falta descontar el relleno a mano — que es
+     exactamente donde fallaba el intento anterior.
+
+     --baja son los 44 px de puro descenso que hacen que la composición no
+     nazca pegada al borde (CRITERIOS-DISENO §4.7). El 03/09 le puse que
+     cediera al DOBLE de rápido que el resto, razonando que era el lujo más
+     prescindible. Estaba mal: el usuario lo vio enseguida —"el título queda
+     bastante pegado al borde"— y tenía razón, porque ése es justo el número
+     que gobierna "a qué altura nace". Ahora cede como todos los demás. */
+  --gap-body-v: calc(20px * var(--aire) * var(--encaje));
+  --baja:       calc(44px * var(--aire) * var(--encaje));
 }
 
 /* El único hueco de la composición que estaba escrito en píxeles crudos y
@@ -296,6 +309,42 @@
 #history-list.open {
   transform: translateX(-50%) translateY(0);
   max-height: min(46vh, var(--hist-hueco, 46vh));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EL VOLUMEN NO SE PUEDE SUBIR ENCIMA DEL CÍRCULO
+   ═══════════════════════════════════════════════════════════════════
+   Reportado: *"hay una falla cuando está fuera de aire… el slider del volumen
+   se mueve encima del círculo, pierde su posición habitual"*.
+
+   No es "fuera de aire" en sí: es cuando **el Worker no manda `description`**.
+   La bajada se queda en "RADIO SERRANA" —el texto del marcado— y de su tinta
+   cuelga todo el sistema de alineación. MEDIDO en Chromium a 412×915, sobre
+   la versión VIEJA y la nueva por igual:
+
+       escenario                 --hist-ancho   caja      barra visible
+       normal (en el aire)          281px       +42        +69   ok
+       fuera de aire                281px       +42        +69   ok
+       SIN campo description        137px       −30         −3   PISA EL CÍRCULO
+       description vacía            137px       −30         −3   PISA EL CÍRCULO
+       Worker no contesta           137px       −30         −3   PISA EL CÍRCULO
+
+   La cuenta lo explica sola: `--vol-sep` es
+   `(--hist-ancho − --btn-size) / 2 − --vol-w`, o sea `(137 − 125) / 2 − 9 =
+   −3`. Y el margen del fader le resta además el borde táctil de 27 px, así
+   que la CAJA del volumen entra **30 px adentro del círculo**: no sólo se ve
+   corrido, le roba toques al botón de play.
+
+   EL PISO: `--vol-sep` no puede ser menor que el borde táctil. Con eso el
+   margen del fader nunca es negativo y la caja nunca cruza el borde del
+   círculo, venga de donde venga el ancho de referencia — Worker caído,
+   bajada vacía, o una piel que cambie la tipografía.
+
+   En el caso normal `--vol-sep` vale 61 px, muy por encima del piso, así que
+   esto NO cambia nada de lo que se ve hoy: es una red, no un ajuste. */
+:root {
+  --vol-sep: max(var(--vol-toque),
+                 calc((var(--hist-ancho) - var(--btn-size)) / 2 - var(--vol-w)));
 }
 
 /* ── El diagnóstico de ?encaje ───────────────────────────────────────

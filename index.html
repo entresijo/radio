@@ -7,10 +7,9 @@
 <!-- ═══════════════════════════════════════════════════════════════════
      ESTE ARCHIVO ES index0, PROMOVIDO A PRODUCCIÓN EL 03/09/2026.
 
-     Hasta el 27/08 index.html era una copia exacta de index5.html. Desde hoy
-     NO: index.html es una copia de index0.html, e index5.html quedó como
-     estaba (la versión anterior, para comparar — y es la base desde la que
-     se genera index0). El respaldo del que estaba al aire es
+     index.html es una copia de index0.html. index5.html quedó en la versión
+     anterior — es la base desde la que se genera index0, así que NO se toca.
+     El respaldo del que estaba al aire antes de todo esto es
      backup/index-produccion-antes-de-index0-*.html, y volver atrás es
      copiarlo encima de index.html y desplegar.
 
@@ -4944,6 +4943,66 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
   s.src = 'medir-dial.js'; document.body.appendChild(s);
 }
 
+/* =================================================================
+   [index0] LA RUEDA DEL MOUSE MUEVE EL CONTROL QUE ESTAS MIRANDO
+   =================================================================
+   Pedido del usuario: "si mouseover sobre la zona de volumen o del dial y
+   toco la rueda del scroll, que se mueva esa barra".
+
+   Es una affordance de escritorio y sale gratis: los dos controles ya tienen
+   un estado -- el valor del range y el scrollLeft de la tira -- asi que la
+   rueda solo los empuja. No agrega ningun elemento a la composicion.
+
+   TRES CUIDADOS, y los tres son la diferencia entre que ayude y que moleste:
+
+   1) SOLO CON PUNTERO FINO. `matchMedia('(hover: hover) and (pointer: fine)')`
+      es la misma excepcion que el proyecto ya admite (ver la regla 2 en
+      `entresijo-sin-media-queries`): pregunta por el dispositivo, no por el
+      tamano. En un telefono no se engancha nada.
+
+   2) `passive: false` Y `preventDefault`. Sin eso la pagina scrollea al mismo
+      tiempo que el control, que es peor que no hacer nada. Como la
+      composicion entra sin scroll, el gesto no le saca nada a nadie.
+
+   3) EL DIAL NO SE TOCA POR DENTRO. La rueda escribe `scrollLeft` y listo:
+      el resto -- el iman, el aviso con el nombre de la piel, `aplicar()` --
+      lo dispara el propio evento `scroll` que ya existe. Ni una linea de la
+      fisica calibrada se toca. */
+(function () {
+  try {
+    if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    /* El volumen: una muesca = 5 %. El `input` es el que ya escucha el
+       reproductor para mover el audio y repintar, asi que se despacha igual
+       que si lo hubieran arrastrado. */
+    var vol = document.getElementById('volume');
+    if (vol) vol.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var paso = (e.deltaY > 0 ? -1 : 1) * 0.05;
+      var v = Math.max(0, Math.min(1, (+vol.value) + paso));
+      if (v !== +vol.value) {
+        vol.value = String(v);
+        vol.dispatchEvent(new Event('input', { bubbles: true }));
+        vol.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }, { passive: false });
+
+    /* El dial: la rueda vertical empuja la tira en horizontal, que es lo
+       natural con una banda acostada. Se toma el eje que mas se movio, asi
+       que un mouse con rueda horizontal o un trackpad tambien andan.
+       El paso es de una marca (35 px = 26 de marca + 9 de hueco), para que
+       cada muesca caiga cerca de una parada y el iman haga el resto. */
+    var tira = document.getElementById('dial-tira');
+    if (tira) tira.addEventListener('wheel', function (e) {
+      var d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (!d) return;
+      e.preventDefault();
+      tira.scrollLeft += (d > 0 ? 1 : -1) * 35;
+    }, { passive: false });
+  } catch (e) {}
+})();
+
+
 /* ═════════════════════════════════════════════════════════════════
    [index0] ¿ESTE NAVEGADOR SABE DIBUJAR UN FADER VERTICAL?
    ═════════════════════════════════════════════════════════════════
@@ -5047,10 +5106,6 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
     return app.getBoundingClientRect().height +
            parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
   }
-  function rellenoBody() {
-    var cs = getComputedStyle(document.body);
-    return parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-  }
 
   var midiendo = false;
 
@@ -5069,28 +5124,54 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
       var aire = 1, z = 1;
 
       if (p > disp) {
-        /* Paso 1 — los huecos. No se salta al mínimo: se pregunta cuánto
-           RINDE el mínimo y se interpola para gastar sólo lo que falta. En
-           un teléfono al que le faltan 20 px la composición se junta 20 px,
-           no 150. */
-        raiz.style.setProperty('--aire', String(AIRE_MIN));
-        var pMin = pedido();
-        var rinde = p - pMin;
-        if (rinde > 0) {
-          var falta = p - disp;
-          aire = (falta >= rinde) ? AIRE_MIN : 1 - (falta / rinde) * (1 - AIRE_MIN);
-        }
-        raiz.style.setProperty('--aire', aire.toFixed(3));
-        p = pedido();
+        /* ── PASO 1: LA ESCALA, QUE ES LA QUE RESPETA LA COMPOSICIÓN ──
+           Una escala uniforme conserva TODAS las proporciones: el margen de
+           arriba, los huecos entre bloques, el tamaño de la letra y el
+           diámetro del botón bajan todos en la misma medida. Es la
+           composición original, más chica — no otra composición.
 
-        if (p > disp) {
-          /* Paso 2 — la escala. El relleno del body vive AFUERA de
-             .player-app, así que no lo toca el zoom: se descuenta de los dos
-             lados antes de dividir, o el resultado queda corto. */
-          var r = rellenoBody();
-          var cuerpo = p - r;
-          if (cuerpo > 0) z = (disp - r) / cuerpo;
-          z = Math.max(ENCAJE_MIN, Math.min(1, z));
+           Apretar huecos, en cambio, cambia la relación entre los elementos y
+           su espaciado: la letra queda igual y el aire se achica, así que el
+           conjunto se lee más apretado. Por eso el aire va DESPUÉS, y sólo
+           por lo que la escala no puede cubrir.
+
+           (Estaba al revés hasta el 05/09. Se cambió a pedido del usuario:
+           "que si achica espacio lo haga respetando lo más posible la
+           composición original". El síntoma que lo destapó fue el título
+           quedando pegado al borde de arriba.)
+
+           LA DIVISIÓN ES EXACTA, y eso es nuevo: desde que el relleno del
+           body también se multiplica por --encaje (ver encaje0.css), el alto
+           pedido es proporcional a la escala —pedido(z) = pedido(1) × z— así
+           que `disp / p` da el número justo de una. Antes el relleno quedaba
+           afuera del zoom y había que descontarlo a mano; ése fue el error
+           que hizo fallar el intento anterior de un tercer tramo. */
+        z = Math.max(ENCAJE_MIN, Math.min(1, disp / p));
+        raiz.style.setProperty('--encaje', z.toFixed(3));
+
+        if (pedido() > disp) {
+          /* ── PASO 2: EL AIRE, sólo si la escala tocó su piso ──
+             Se llega acá cuando achicar más volvería ilegible la tipografía.
+             Ahí sí se ceden los huecos, y no de golpe: se pregunta cuánto
+             RINDE el mínimo y se interpola para gastar sólo lo que falta. */
+          var pAntes = pedido();
+          raiz.style.setProperty('--aire', String(AIRE_MIN));
+          var pMin = pedido();
+          var rinde = pAntes - pMin;
+          if (rinde > 0) {
+            var falta = pAntes - disp;
+            aire = (falta >= rinde) ? AIRE_MIN : 1 - (falta / rinde) * (1 - AIRE_MIN);
+          } else {
+            aire = AIRE_MIN;
+          }
+          raiz.style.setProperty('--aire', aire.toFixed(3));
+
+          /* Y se le devuelve tamaño a la letra con lo que el aire liberó: se
+             vuelve a medir SIN escala —para que la división siga siendo
+             exacta— y se recalcula. */
+          raiz.style.setProperty('--encaje', '1');
+          var p2 = pedido();
+          z = Math.max(ENCAJE_MIN, Math.min(1, disp / p2));
           raiz.style.setProperty('--encaje', z.toFixed(3));
 
           /* SE PROBO UN PASO 3 —bajar el aire a 0,30 cuando la escala ya toco
@@ -5111,6 +5192,19 @@ if (new URLSearchParams(location.search).get('medir') === 'dial') {
              —320x480 y el telefono acostado— no entran porque no hay manera
              sin bajar del piso de legibilidad, y ahi el scroll es la respuesta
              honesta. */
+        }
+      }
+
+      /* UNA CORRECCIÓN, Y ALCANZA. La cuenta de la escala es exacta en
+         teoría, pero `toFixed(3)` redondea y el navegador cuantiza en
+         subpíxeles: en la barrida quedaban entre 1 y 4 px de scroll en tres
+         formatos. Como el alto pedido es proporcional a la escala, corregir
+         es multiplicar la escala por lo que sobró — y converge de una. */
+      if (z > ENCAJE_MIN) {
+        var pReal = pedido();
+        if (pReal > disp) {
+          z = Math.max(ENCAJE_MIN, Math.min(1, z * disp / pReal));
+          raiz.style.setProperty('--encaje', z.toFixed(3));
         }
       }
 
