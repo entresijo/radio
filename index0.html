@@ -4846,8 +4846,43 @@ function publicarAncho() {
      saldría achicado dos veces y se desalinearían las tres cosas que
      gobierna: el historial, el ancho del título y la separación del
      volumen. Es el sistema de alineación entero. */
+  /* [index0] SE MIDE SIEMPRE CON LA PIEL BASE, sacandola un instante y
+     devolviendola. Es la misma disciplina que ya usa `tomarAncla()` unas
+     lineas mas arriba, y por el mismo motivo: lo que se esta midiendo
+     depende de la tipografia, y cada piel trae la suya.
+
+     POR QUE HIZO FALTA AHORA: hasta el encaje, `publicarAncho()` corria solo
+     al cargar, con `fonts.ready`, al cambiar el ancho de ventana y cuando el
+     Worker cambiaba la bajada -- nunca con una piel puesta, asi que la
+     precaucion no se notaba que faltaba. El motor del encaje lo llama en cada
+     reajuste, y su observador de tamano se dispara al cambiar de piel: de
+     golpe se empezo a medir con la tipografia de la piel.
+
+     MEDIDO en Chromium, con el tema "Roots Revisited - Better Get Hit In Yo
+     Soul" y las once marcas del dial:
+
+         piel             --hist-ancho ANTES   con el bug   el titulo
+         primigenio             281px             187px     SE CORTA
+         primera-noche          281px             141px     SE CORTA (+94)
+         index2                 281px             181px     SE CORTA
+         las de Inter           281px             281px     igual
+
+     `#title` tiene `max-width: var(--hist-ancho)`, asi que el titulo pasaba
+     de 281 px de ancho a 141 y se comia media cancion. Y como del mismo
+     numero cuelgan el historial y `--vol-sep`, la composicion se reacomodaba
+     a lo ancho en CADA muesca de la rueda sobre el dial -- que es el "cambia
+     de posicion la composicion" del mismo reporte.
+
+     Tambien se saca `data-fantasma`: las pieles del easter egg cuelgan reglas
+     de ahi, y es la puerta de al lado del mismo cuidado. */
+  const raizA = document.documentElement;
+  const pielA = app.dataset.skin, fantA = app.dataset.fantasma;
+  if (pielA) { delete app.dataset.skin; delete raizA.dataset.skin; }
+  if (fantA) { delete app.dataset.fantasma; delete raizA.dataset.fantasma; }
   const w = Math.round(r.getBoundingClientRect().width / zoomApp());
-  if (w) document.documentElement.style.setProperty('--hist-ancho', w + 'px');
+  if (pielA) { app.dataset.skin = pielA; raizA.dataset.skin = pielA; }
+  if (fantA) { app.dataset.fantasma = fantA; raizA.dataset.fantasma = fantA; }
+  if (w) raizA.style.setProperty('--hist-ancho', w + 'px');
 }
 
 /* Se mide TRES veces y no una, y las tres hacen falta:
