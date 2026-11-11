@@ -436,6 +436,54 @@ let audioCtx = null, analyser = null, datos = null, nodoSilencioso = null;
 let vuActivo = false, wakeLock = null;
 let tReconexion = null, tHipo = null, tConexion = null;
 
+/* [S7 · 11/11] Cada conexión que se abre lleva un número. Una promesa de
+   play() vieja que rechaza tarde —de una conexión que ya se reemplazó— no
+   puede reprogramar nada sobre la conexión nueva: antes, un rechazo así
+   llamaba a programarReconexion() y tiraba abajo una conexión sana. */
+let conexionId = 0;
+
+/* [S7 · 11/11] currentTime en el momento en que empezó la duda (un hipo en
+   observación o un reintento agendado). Si desde ahí el audio AVANZA, la
+   duda se terminó: la conexión entrega. -1 = no hay duda abierta. */
+let ctDuda = -1;
+const AVANCE_S = 1.0;      // cuánto tiene que avanzar el audio para darlo por vivo
+
+let ultimaMetaOk = 0;      // última vez que el Worker contestó: prueba de que HAY red
+
+/* ── REGISTRO DE RECONEXIÓN [S7 · 11/11] ─────────────────────────
+   El "anillo girando con el stream sonando" se reportó varias veces y
+   nunca se pudo ver en el momento: pasa en un teléfono, a veces, y
+   cuando alguien mira ya pasó. Esto anota cada evento del elemento y
+   cada decisión de la lógica, con el estado en ese instante, en un
+   anillo de 300 renglones que sobrevive a recargar la página. Se lee y
+   se copia desde el panel oculto (cinco toques en el nombre).
+   No sale del navegador: no manda nada a ningún lado. */
+const REG_MAX = 300;
+let registro = [];
+try { registro = JSON.parse(localStorage.getItem('entresijo:registro') || '[]'); } catch (e) {}
+if (!Array.isArray(registro)) registro = [];
+let tGuardarReg = null;
+function guardarRegistro() {
+  tGuardarReg = null;
+  try { localStorage.setItem('entresijo:registro', JSON.stringify(registro)); } catch (e) {}
+}
+function anotar(que) {
+  try {
+    const d = new Date(), dos = n => (n < 10 ? '0' : '') + n;
+    const p = document.getElementById('player');
+    registro.push(dos(d.getDate()) + '/' + dos(d.getMonth() + 1) + ' ' +
+      dos(d.getHours()) + ':' + dos(d.getMinutes()) + ':' + dos(d.getSeconds()) + ' ' + que +
+      '  [q' + +quiereSonar + ' s' + +estaSonando + ' c' + +conectando + ' r' + +reconectando +
+      ' e' + +enEspera + ' h' + +hipoActivo + ' i' + intentos +
+      (p ? ' rs' + p.readyState + ' ns' + p.networkState + ' p' + +p.paused + ' t' + p.currentTime.toFixed(1) : '') +
+      (audioCtx ? ' ctx:' + audioCtx.state : '') + (navigator.onLine ? '' : ' OFFLINE') + ']');
+    if (registro.length > REG_MAX) registro.splice(0, registro.length - REG_MAX);
+    // localStorage es sincrónico y escribe a disco: se junta en una escritura cada 2 s
+    if (!tGuardarReg) tGuardarReg = setTimeout(guardarRegistro, 2000);
+  } catch (e) {}
+}
+addEventListener('pagehide', guardarRegistro);
+
 let ultimoDato    = null;   // última respuesta del Worker
 let sinRed        = !navigator.onLine;
 let simulando     = null;   // estado forzado desde el panel oculto
@@ -862,6 +910,7 @@ async function arrancar() {
      murió durante la pausa no sirve: ahí se cae al camino normal y reconecta.
      Tampoco se arma el watchdog de conexión — no hay conexión que vigilar. */
   if (player.src && player.readyState >= 2 && !player.ended) {
+    anotar('retoma de pausa corta');
     quiereSonar = true; pausadoPorMi = false; enEspera = false;
     initAudio(); nodoVivo(); pedirWakeLock();
     setIcono(true); repintar();
@@ -876,12 +925,17 @@ async function arrancar() {
   setAnillo(true, false, .85);
   pintar('sintoniza');
 
+  const id = ++conexionId;
+  anotar('arrancar #' + id);
   player.src = urlStream();
   armarVigiaConexion();
 
   try { await player.play(); }
   catch (e) {
     if (e.name === 'AbortError') return;
+    // Rechazo de una conexión que ya no es la vigente: no se toca nada.
+    if (id !== conexionId) { anotar('play() viejo rechazado (#' + id + '), ignorado'); return; }
+    anotar('play() rechazado: ' + e.name);
     conectando = false;
     if (quiereSonar) programarReconexion();
   }
@@ -912,6 +966,8 @@ const PAUSA_MAX_MS = 60000;
 let tSoltar = null;
 
 function pausar() {
+  anotar('pausa del oyente');
+  ctDuda = -1;
   quiereSonar = false; estaSonando = false;
   conectando = false; reconectando = false; enEspera = false;
   vuActivo = false; intentos = 0;
@@ -931,7 +987,9 @@ function pausar() {
 }
 
 function detener(porElOyente) {
+  anotar('detener' + (porElOyente ? ' (suelta la conexión pausada)' : ''));
   if (tSoltar) { clearTimeout(tSoltar); tSoltar = null; }
+  ctDuda = -1;
   quiereSonar = false; estaSonando = false;
   conectando = false; reconectando = false; enEspera = false;
   vuActivo = false; intentos = 0;
@@ -956,6 +1014,8 @@ function detener(porElOyente) {
    Quien despierta de este estado es el poll de metadata, no un timer
    de audio. ─────────────────────────────────────────────────────── */
 function pausarPorEmisora() {
+  anotar('corte confirmado por el Worker: en espera');
+  ctDuda = -1;
   enEspera = true;
   estaSonando = false; conectando = false; reconectando = false;
   vuActivo = false; intentos = 0;
@@ -985,6 +1045,7 @@ function actualizarBoton() {
 // los catch de abajo ya saben ignorar. Así no hace falta un id de
 // intento para distinguir "esto es viejo, no lo toques".
 function conexionFallida() {
+  anotar('conexión fallida: se suelta');
   limpiarTimers();
   conectando = false; reconectando = false;
   player.pause();
@@ -1003,7 +1064,10 @@ function conexionFallida() {
 // tiempo, se trata como un fallo más.
 function armarVigiaConexion() {
   clearTimeout(tConexion);
-  tConexion = setTimeout(conexionFallida, CONEXION_MAX_MS);
+  tConexion = setTimeout(function () {
+    anotar('vigía: ' + CONEXION_MAX_MS / 1000 + ' s sin "playing"');
+    conexionFallida();
+  }, CONEXION_MAX_MS);
 }
 
 /* Lineal rápido primero, exponencial después.
@@ -1028,7 +1092,12 @@ function programarReconexion() {
   // Icecast apenas vuelve.
   const espera = Math.round(esperaReintento() * (0.85 + Math.random() * 0.3));
   const vel    = Math.min(.6 + intentos * .3, 2).toFixed(1);
-  intentos++;   // se reinicia SÓLO en el evento 'playing'
+  intentos++;   // se reinicia en 'playing', en 'online' y en confirmarSonando()
+  anotar('reintento ' + intentos + ' agendado en ' + (espera / 1000).toFixed(1) + ' s');
+
+  // La duda queda abierta desde ACÁ: si mientras se espera el reintento la
+  // conexión vieja vuelve a entregar, el vigía de avance lo cancela.
+  if (ctDuda < 0) ctDuda = player.currentTime;
 
   vuActivo = false; vuBase();
   pintar('buscando');
@@ -1041,7 +1110,16 @@ function programarReconexion() {
     // viajero sin señal quemaría batería abriendo decenas de conexiones
     // imposibles. Se sigue girando el ciclo (barato, sin socket) y el
     // evento 'online' lo acelera apenas vuelve la señal.
-    if (!navigator.onLine) { reconectando = false; programarReconexion(); return; }
+    // [S7 · 11/11] PERO navigator.onLine no tiene la última palabra: en
+    // Android puede quedar en false con la red andando (VPN, ahorro de
+    // batería, un cambio de red que el navegador no registró), y entonces
+    // el reproductor giraba PARA SIEMPRE sin abrir un solo socket. Si el
+    // Worker contestó hace menos de dos polls, hay red, diga lo que diga.
+    if (!navigator.onLine && Date.now() - ultimaMetaOk > 2 * META_MS) {
+      anotar('sin red del sistema: reintento sin socket');
+      reconectando = false; programarReconexion(); return;
+    }
+    anotar('reintento ' + intentos + ': conecta');
     player.pause();
     player.removeAttribute('src');
     player.load();
@@ -1051,11 +1129,20 @@ function programarReconexion() {
     // esta espera de 200ms se ignoraba, y el retry resucitaba el audio
     // arrancándolo de nuevo apenas después de que se le pidió parar.
     if (!quiereSonar) { reconectando = false; return; }
+    const id = ++conexionId;
     player.src = urlStream();
     armarVigiaConexion();
     try { await player.play(); }
     catch (e) {
-      if (e.name === 'AbortError') { reconectando = false; return; }
+      // [S7] Un AbortError no toca `reconectando`: todo lo que aborta una
+      // conexión —pausar, detener, el corte confirmado, conexionFallida, el
+      // reintento siguiente— ya deja esa bandera como corresponde. Antes acá
+      // se ponía en false con otro reintento en vuelo, y desde ahí el
+      // latido, 'waiting' y el poll cortaban los intentos antes de tiempo
+      // (auditoría S7, H3: de ~26 s a 66-89 s para volver a sonar).
+      if (e.name === 'AbortError') return;
+      if (id !== conexionId) { anotar('play() viejo rechazado (#' + id + '), ignorado'); return; }
+      anotar('play() rechazado: ' + e.name);
       // Si el evento 'error' ya reagendó, no reagendar de nuevo: sería
       // saltear un escalón de la escalera y disparar dos veces.
       if (tReconexion) return;
@@ -1066,15 +1153,49 @@ function programarReconexion() {
 }
 
 /* ── Eventos del elemento audio ──────────────────────────────── */
-player.addEventListener('playing', () => {
+/* Lo que hace 'playing', separado para que el vigía de avance pueda
+   decir lo mismo cuando el navegador no lo dice. */
+function confirmarSonando() {
   conectando = false; reconectando = false;
   estaSonando = true; intentos = 0;
-  conexionDesde = Date.now();
+  ctDuda = -1;
   limpiarTimers();
   setAnillo(false); setIcono(true);
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-  vuActivo = true; vuLoop();
+  vuActivo = true; vuLoop();   // vuLoop ya garantiza un solo bucle
   repintar();
+}
+player.addEventListener('playing', () => {
+  anotar('playing');
+  conexionDesde = Date.now();
+  confirmarSonando();
+});
+
+/* ── VIGÍA DE AVANCE [S7 · 11/11] ─────────────────────────────────
+   EL BUG: "a veces el reproductor queda girando como intentando
+   reconectar mientras el stream sigue dando audio". El anillo lo apaga
+   UN SOLO evento, 'playing', y hay caminos donde el audio sigue o vuelve
+   a sonar sin que ese evento llegue:
+     · 'stalled' es de RED, no de reproducción: avisa que no llegan bytes
+       aunque el búfer siga sonando. No cambia readyState, así que después
+       no viene ningún 'playing'. El anillo se encendía con el audio
+       andando, y a los 6 s se TIRABA una conexión sana;
+     · el reintento que no abre socket porque navigator.onLine dice false
+       (ver programarReconexion): la conexión vieja seguía sonando debajo
+       y el anillo ámbar giraba para siempre;
+     · cualquier navegador que no repita 'playing' al recuperarse.
+   La regla 5 del arranque lo dice: si el audio suena, la radio está al
+   aire. Acá se aplica al anillo: si desde que empezó la duda el audio
+   AVANZÓ un segundo, la duda se terminó — se cancela el hipo o el
+   reintento pendiente y se apaga el anillo, igual que con 'playing'.
+   'timeupdate' viene ~4 veces por segundo mientras suena, y sólo se mira
+   cuando hay una duda abierta: no cuesta nada el resto del tiempo. */
+player.addEventListener('timeupdate', () => {
+  if (ctDuda < 0 || !quiereSonar || enEspera || player.paused) return;
+  if (player.currentTime - ctDuda >= AVANCE_S) {
+    anotar('el audio avanza: se cierra la duda');
+    confirmarSonando();
+  }
 });
 
 // Un hipo corto no cambia el badge: no hay nada que el oyente pueda hacer y
@@ -1085,7 +1206,8 @@ player.addEventListener('playing', () => {
 player.addEventListener('waiting', manejarHipo);
 player.addEventListener('stalled', manejarHipo);
 
-function manejarHipo() {
+function manejarHipo(ev) {
+  if (ev && ev.type) anotar(ev.type);
   if (!quiereSonar || conectando || reconectando || enEspera) return;
   setAnillo(true, false, .85);
   // El reloj arranca en el PRIMER aviso, no en cada uno: una conexión que
@@ -1094,6 +1216,7 @@ function manejarHipo() {
   // repetidos confirman el problema, no lo posponen.
   if (hipoActivo) return;
   hipoActivo = true; hipoExtendido = false;
+  ctDuda = player.currentTime;   // desde acá mira el vigía de avance
   tHipo = setTimeout(revisarHipo, HIPO_MS);
 }
 
@@ -1107,10 +1230,12 @@ function revisarHipo() {
   hipoActivo = false;
   if (!quiereSonar || conectando || reconectando || enEspera) return;
   if (player.networkState === player.NETWORK_LOADING && !hipoExtendido) {
+    anotar('hipo: sigue cargando, prórroga');
     hipoExtendido = true; hipoActivo = true;
     tHipo = setTimeout(revisarHipo, HIPO_EXT_MS);
     return;
   }
+  anotar('hipo agotado: reconecta');
   programarReconexion();
 }
 
@@ -1127,7 +1252,10 @@ function revisarHipo() {
    agendado?": si lo hay, este error es del intento que acaba de morir y
    no hay nada que hacer; si no lo hay, el intento actual falló y toca
    reagendar ya. */
-function murioLaConexion() {
+function murioLaConexion(ev) {
+  anotar(ev && ev.type === 'error'
+    ? 'error' + (player.error ? ' código ' + player.error.code : '')
+    : 'ended (el servidor cerró)');
   if (!quiereSonar || enEspera) { conectando = false; return; }
   if (tReconexion) return;
   conexionFallida();
@@ -1141,17 +1269,55 @@ player.addEventListener('error', murioLaConexion);
    después. Va al mismo embudo que 'error'. */
 player.addEventListener('ended', murioLaConexion);
 
-player.addEventListener('pause', () => { estaSonando = false; });
+player.addEventListener('pause', () => {
+  // Las pausas propias vienen con quiereSonar en false o con una conexión
+  // que se está soltando; una pausa con el oyente queriendo sonar la puso
+  // el SISTEMA (otra app tomó el audio, una llamada, se desconectaron los
+  // auriculares). Hoy se trata como un hipo; queda anotada para saberlo.
+  if (quiereSonar && estaSonando && !conectando && !reconectando) anotar('pause impuesta por el sistema');
+  estaSonando = false;
+});
 
 /* ── Latido: red de contención por si ningún evento avisó ────────
    Antes reconectaba directo con sólo mirar readyState, sin la paciencia
    de arriba: podía cortar una conexión que 'waiting' todavía estaba
    esperando de buena fe. Ahora entra por el mismo manejarHipo(), así que
    sigue las mismas reglas — un solo camino de decisión, no dos corriendo
-   en paralelo con criterios distintos. ───────────────────────────── */
+   en paralelo con criterios distintos.
+
+   [S7 · 11/11] VIGÍA DE CONGELAMIENTO. Medido en el banco (Chromium real,
+   banco-s7/): con el AudioContext suspendido el audio se CLAVA —sin
+   pausa, readyState 4, el búfer lleno y currentTime quieto— y el
+   reproductor seguía diciendo "EN EL AIRE" en silencio, para siempre:
+   ningún evento avisa y el latido sólo miraba `paused` y readyState.
+   Como el audio pasa por el AudioContext (vúmetro), si el contexto se
+   suspende —Android lo hace al perder el foco de audio o en segundo
+   plano— el elemento se queda sin quien lo consuma.
+   Ahora: reloj quieto con datos y sin pausa durante un latido → se
+   reanuda el contexto; dos latidos seguidos (~8 s) → se trata como un
+   hipo, por el mismo embudo de siempre. Se compara contra el tiempo de
+   pared y no contra la cuenta de latidos: en segundo plano el
+   setInterval se estrangula y un "latido" puede durar un minuto. ──── */
+let ctLatido = -1, tsLatido = 0, latidosQuietos = 0;
 setInterval(() => {
-  if (!quiereSonar || conectando || reconectando || enEspera) return;
-  if (player.paused || player.readyState < 2) manejarHipo();
+  if (!quiereSonar || conectando || reconectando || enEspera) {
+    ctLatido = -1; latidosQuietos = 0; return;
+  }
+  const ahora = Date.now(), ct = player.currentTime;
+  const quieto = !player.paused && player.readyState >= 3 && ctLatido >= 0 &&
+                 Math.abs(ct - ctLatido) < 0.1 && ahora - tsLatido >= LATIDO_MS - 500;
+  latidosQuietos = quieto ? latidosQuietos + 1 : 0;
+  ctLatido = ct; tsLatido = ahora;
+  if (latidosQuietos === 1) {
+    anotar('audio quieto con datos');
+    if (audioCtx && audioCtx.state !== 'running') {
+      try { const r = audioCtx.resume(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+    }
+  }
+  if (player.paused || player.readyState < 2 || latidosQuietos >= 2) {
+    if (latidosQuietos === 2) anotar('audio congelado: se trata como hipo');
+    manejarHipo();
+  }
 }, LATIDO_MS);
 
 /* ── El botón responde a la INTENCIÓN, nunca al estado ───────── */
@@ -1193,8 +1359,9 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && histAbierto) abrirHistorial(false); });
 
 /* ── Red del sistema operativo ───────────────────────────────── */
-window.addEventListener('offline', () => { sinRed = true;  repintar(); });
+window.addEventListener('offline', () => { anotar('offline'); sinRed = true;  repintar(); });
 window.addEventListener('online',  () => {
+  anotar('online');
   sinRed = false;
   // Volvió la red: preguntar YA en vez de esperar hasta 15s al próximo
   // poll. Si la radio estaba caída y ya volvió, esto la retoma al toque.
@@ -1207,6 +1374,10 @@ window.addEventListener('online',  () => {
     // el reintento lejano que estaba agendado. Sin esto, volver la señal
     // no servía de nada durante otros 15 segundos.
     intentos = 0;
+    // [S7] Sólo se cancela un reintento AGENDADO (el lejano, el del techo).
+    // Si hay uno en vuelo —ya abrió socket y espera 'playing'— se lo deja
+    // terminar: tirarlo para abrir otro igual sólo suma un arranque.
+    if (reconectando && !tReconexion) return;
     if (reconectando) { limpiarTimers(); reconectando = false; }
     programarReconexion();
   }
@@ -1214,6 +1385,8 @@ window.addEventListener('online',  () => {
 
 /* ── Volver a la pestaña ─────────────────────────────────────── */
 document.addEventListener('visibilitychange', () => {
+  anotar(document.hidden ? 'pestaña oculta' : 'pestaña visible');
+  if (document.hidden) guardarRegistro();
   if (document.hidden || !quiereSonar) return;
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   // El navegador libera el Wake Lock solo al ocultar la pestaña y no lo
@@ -1365,14 +1538,27 @@ const META_FALLOS_AVISO = 3;   // ~45s de silencio antes de admitir que no sabem
 
 async function traerMeta() {
   const seq = ++metaSeq;
+  /* [S7 · 11/11] Tope de 8 s. El botón nace deshabilitado y lo habilita la
+     respuesta del Worker (o su falla). Un fetch sin tope que se cuelga —ni
+     contesta ni falla— dejaba el play intocable para siempre, aunque el
+     audio, que va directo al VPS, anduviera perfecto (auditoría S7, H7).
+     Abortar cae en el catch de abajo, que destraba el botón. */
+  const corte = window.AbortController ? new AbortController() : null;
+  const tCorte = setTimeout(() => { if (corte) corte.abort(); }, 8000);
   try {
-    const r = await fetch(INFO + '?t=' + Date.now(), { cache: 'no-store' });
+    const r = await fetch(INFO + '?t=' + Date.now(),
+                          corte ? { cache: 'no-store', signal: corte.signal } : { cache: 'no-store' });
     if (!r.ok) throw new Error('http ' + r.status);
-    const d = await r.json();
+    const d = await r.json();   // el tope cubre también el cuerpo
+    clearTimeout(tCorte);
     if (seq !== metaSeq) return;   // llegó una respuesta más nueva antes: se descarta ésta
 
     metaFallos = 0;
     ultimoDato = d;
+    ultimaMetaOk = Date.now();
+    // [S7] El Worker contestó: hay red, aunque navigator.onLine diga que no.
+    // Sin esto el badge podía quedar en "SIN CONEXIÓN" con todo andando.
+    if (sinRed) { anotar('el Worker contesta con onLine=false: hay red'); sinRed = false; }
 
     // Qué reproducir. Nombre confirmado por el Worker (05/08) y viene
     // SIEMPRE, no sólo cuando cambia — así no hay que distinguir "no
@@ -1415,8 +1601,10 @@ async function traerMeta() {
     repintar();
 
   } catch (e) {
+    clearTimeout(tCorte);
     if (seq !== metaSeq) return;
     metaFallos++;
+    if (metaFallos === 1 || metaFallos === META_FALLOS_AVISO) anotar('el Worker no contesta (' + metaFallos + ')');
     // Una falla sola no es un corte: puede ser el mismo 0,34-2% de pérdida
     // de paquetes ya documentado para el audio. Recién tras varias fallas
     // seguidas se admite que no sabemos nada — antes de eso se sigue
@@ -1466,6 +1654,7 @@ function decidirCorte(d) {
        La guarda `!tReconexion` es la de producción y es la que evita el
        martilleo: si ya hay algo agendado, acá no se toca nada. */
     if (quiereSonar && !estaSonando && !conectando && !tReconexion) {
+      anotar('poll de metadata: quiere sonar y no suena');
       programarReconexion();
     }
     actualizarBoton();
@@ -1475,7 +1664,17 @@ function decidirCorte(d) {
   // Verificado y fuera del aire: el encoder se desconectó de verdad.
   // No se reintenta el audio contra un encoder apagado, pero tampoco se
   // borra la intención del oyente: queda en espera y se retoma arriba.
-  if (quiereSonar && !enEspera) pausarPorEmisora();
+  /* [S7 · 11/11] SALVO QUE EL AUDIO ESTÉ SONANDO. Regla 5: si suena, la
+     radio está al aire. Desde el respaldo del VPS (Liquidsoap en
+     /respaldo, CASO_20261022 §7a) es un caso real y no teórico: el
+     encoder del estudio cae, el Worker ve /stream sin fuente y confirma el
+     corte, pero Icecast ya pasó a los oyentes al respaldo por la MISMA
+     conexión y el audio sigue llegando. Cortarlo era apagarle la música al
+     oyente para mostrarle "FUERA DEL AIRE". Si de verdad no llega nada, el
+     audio se frena, deja de contar como sonando, y el próximo poll entra
+     acá igual. */
+  const sonandoDeVerdad = estaSonando && !player.paused && player.readyState >= 3;
+  if (quiereSonar && !enEspera && !sonandoDeVerdad) pausarPorEmisora();
   actualizarBoton();
 }
 
@@ -1533,6 +1732,14 @@ function repintar() {
 setInterval(() => {
   if (!estaSonando || !analyser) return;
   analyser.getByteFrequencyData(datos);
+  /* ⚠️ [S7 · 11/11, SIN ARREGLAR A PROPÓSITO] Esto informa `audio: true`
+     SIEMPRE, con silencio incluido: `datos` mide fftSize (1024) por el
+     vúmetro de forma de onda, getByteFrequencyData llena sólo las primeras
+     512, y la otra mitad conserva muestras de onda (~128). El arreglo es
+     promediar sólo analyser.frequencyBinCount posiciones — pero entonces el
+     Worker empezaría a recibir `false` en cada silencio, y eso puede
+     encender alarmas de aire muerto en otro sistema. Se coordina con la
+     sesión del Worker antes de tocarlo (AUDITORIA-LOGICA H8). */
   let s = 0; for (let i = 0; i < datos.length; i++) s += datos[i];
   fetch(LIVE, {
     method: 'POST',
@@ -1616,6 +1823,15 @@ function armarPanel() {
       '<pre id="dev-diag" style="font-size:9px;line-height:1.6;color:var(--text-mid);' +
       'white-space:pre-wrap;margin:0;font-family:ui-monospace,Consolas,monospace">' +
       textoDiagnostico() + '</pre></div>' +
+    // [S7] El registro de reconexión: lo último arriba, para leerlo en el
+    // teléfono sin desplazar. "Copiar" lo deja listo para pegar en WhatsApp.
+    '<div class="dev-row"><span class="dev-tag">Registro de reconexión (' + registro.length + ')</span>' +
+      '<pre id="dev-reg" style="font-size:9px;line-height:1.5;color:var(--text-mid);max-height:9.5em;' +
+      'overflow:auto;white-space:pre-wrap;margin:0;font-family:ui-monospace,Consolas,monospace">' +
+      esc(registro.slice(-40).reverse().join('\n') || '(vacío)') + '</pre>' +
+      '<button class="dev-btn" data-a="regcopiar">Copiar registro</button>' +
+      '<button class="dev-btn" data-a="regborrar">Borrar registro</button>' +
+    '</div>' +
     '<div class="dev-row">' +
       '<button class="dev-btn" data-a="reset">Sacar overrides locales</button>' +
       '<button class="dev-btn cerrar" data-a="off">Volver a lo real</button>' +
@@ -1642,6 +1858,24 @@ function armarPanel() {
       aplicarFeatures();
       traerConfig();
     }
+    if (a === 'regborrar') { registro = []; guardarRegistro(); }
+    if (a === 'regcopiar') {
+      const texto = 'Entresijo · registro de reconexión · ' + navigator.userAgent + '\n' +
+                    textoDiagnostico() + '\n────\n' + registro.join('\n');
+      const aviso = ok => { b.textContent = ok ? 'Copiado' : 'No se pudo copiar'; };
+      const aMano = () => {   // Chrome viejo / sin permiso de portapapeles
+        try {
+          const t = document.createElement('textarea');
+          t.value = texto; t.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+          document.body.appendChild(t); t.select();
+          aviso(document.execCommand('copy')); t.remove();
+        } catch (e) { aviso(false); }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(texto).then(() => aviso(true), aMano);
+      else aMano();
+      return;   // sin rearmar el panel: el rótulo "Copiado" tiene que verse
+    }
     if (a === 'off') { simulando = null; repintar(); }
     if (a === 'cerrar') { p.classList.remove('open'); return; }
     armarPanel(); p.classList.add('open');
@@ -1654,6 +1888,8 @@ function armarPanel() {
 setInterval(() => {
   const p = $('dev-panel'), diag = $('dev-diag');
   if (p.classList.contains('open') && diag) diag.textContent = textoDiagnostico();
+  const reg = $('dev-reg');
+  if (p.classList.contains('open') && reg) reg.textContent = registro.slice(-40).reverse().join('\n') || '(vacío)';
 }, 3000);
 
 let toques = 0, tToques = null;

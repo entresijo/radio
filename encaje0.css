@@ -223,13 +223,44 @@
    arreglo completo de eso es un manejador de gesto en JS, anotado en el
    informe como el paso siguiente. Pero el bug grave —tocar para bajar y que
    suba al máximo— desaparece. */
+/* [S7 · 11/11] Y NO CON `appearance: slider-vertical`, que era el arreglo
+   hasta acá. Ése es el control NATIVO: el motor lo dibuja él, con su propio
+   cabezal, y todo el estilo noir de la barra se pierde. Reportado: en Android
+   6/7 "un punto de color azul en el slider del volumen". Es esto: la sonda de
+   arriba también da "acostado" en todo Chrome anterior a la 121 (2024) —o
+   sea, todo Chrome de Android 6 y 7, que llega como mucho a la 106 y la 118—,
+   y ahí `slider-vertical` pinta el cabezal azul de Chrome.
+   La técnica que anda en TODOS los motores desde hace más de diez años: el
+   range ACOSTADO con nuestro estilo (`appearance: none`) y girado -90°.
+   · la caja se arma de 118 × 63 (el alto de la barra por su blanco táctil) y
+     los márgenes negativos/positivos la devuelven a ocupar 63 × 118 en la
+     maqueta, la misma huella que el fader parado: nada se corre;
+   · el blanco táctil pasa de los bordes izquierdo/derecho a arriba/abajo,
+     que al girar quedan a los costados — los mismos 27 px;
+   · el degradé va `to right`, que girado es `to top`; y el cabezal cambia
+     ancho por alto. Girado, el mínimo (izquierda) queda abajo.
+   El navegador traduce el toque a través de la rotación, así que arrastrar
+   hacia arriba sube el volumen. Medido en el banco (banco-s7/banco_fader.py). */
 .sin-fader-vertical .vol-slider {
-  -webkit-appearance: slider-vertical;
-          appearance: slider-vertical;
-  /* La técnica vieja gobierna la orientación por `appearance`, así que el
-     writing-mode tiene que salir del camino o los dos mecanismos se pelean. */
+  --vol-ancho: calc(var(--vol-w) + var(--vol-toque) * 2);
   writing-mode: horizontal-tb;
   direction: ltr;
+  width: var(--vol-h);
+  height: var(--vol-ancho);
+  border-width: var(--vol-toque) 0;
+  margin: calc((var(--vol-h) - var(--vol-ancho)) / 2)
+          calc((var(--vol-ancho) - var(--vol-h)) / 2);
+  -webkit-transform: rotate(-90deg);
+          transform: rotate(-90deg);
+  --vol-degrade: linear-gradient(to right,
+                   var(--vol-fill-lo)  0%,
+                   var(--vol-fill-hi)  var(--vol-pct, 80%),
+                   var(--vol-empty-lo) var(--vol-pct, 80%),
+                   var(--vol-empty-hi) 100%);
+}
+.sin-fader-vertical .vol-slider::-webkit-slider-runnable-track { height: 100%; }
+.sin-fader-vertical .vol-slider::-webkit-slider-thumb {
+  width: var(--vol-thumb-h); height: var(--vol-thumb-w);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
