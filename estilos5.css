@@ -661,16 +661,23 @@ body {
      `none` y no `pan-y`: el input nativo necesita manejar el gesto entero él
      mismo, no delegarle al navegador ni siquiera el eje vertical. */
   touch-action: none; overscroll-behavior: contain;
-  /* La barra se VE de 9 px pero se TOCA en 43. El borde transparente agranda
-     la zona sensible sin agrandar el dibujo: `background-clip: padding-box`
-     deja la pintura adentro del borde, y como el radio de la esquina interior
-     es el radio menos el borde (999 − 17, o sea sigue siendo redondo), las
-     puntas del hilo siguen siendo cápsula.
+  /* La barra se VE de 9 px pero se TOCA en 63. (Hasta el 12/11 lo agrandaba un
+     borde transparente; ahora es la caja de contenido entera —ver abajo—,
+     porque el arrastre táctil no arrancaba desde el borde.)
      Medido antes: 9 px de ancho para acertar con el pulgar, contra los 24 que
      pide el mínimo. Es el control más difícil de la pantalla. */
+  /* [S7 · 12/11] EL BLANCO ES CONTENIDO, NO BORDE. Medido por la auditoría de
+     diseño (auditorias-s7/AUDITORIA-DISENO A1) con arrastres táctiles de
+     verdad: Chrome atiende el gesto del range en la caja de CONTENIDO, y un
+     arrastre que arrancaba sobre el borde transparente de 27 px no le llegaba
+     a nadie — de 9 columnas de arranque andaban 3. Ésa es la causa del
+     "16 de 19 gestos le erran" de HANDOFF-S2 §4, y no el tamaño del blanco.
+     Ahora la caja entera (63 px) es contenido, y la barra visible la dibuja el
+     TRACK con su propio ancho (abajo). El ancho total no cambia, así que
+     --vol-sep y la alineación con la bajada quedan donde estaban. Con mouse
+     andaba desde cualquier lado: por eso nunca se vio en la PC. */
   width: calc(var(--vol-w) + var(--vol-toque) * 2); height: var(--vol-h);
-  border: 0 solid transparent;
-  border-left-width: var(--vol-toque); border-right-width: var(--vol-toque);
+  border: 0;
   /* La barra la dibuja el TRACK, no el fondo del elemento. Verificado el 16/08
      pintando el track de verde: se puso verde la barra entera, o sea que el
      navegador lo pinta ENCIMA del fondo. Con el degradé en el fondo se veía la
@@ -693,11 +700,17 @@ body {
 /* Corte limpio en la posición: una transición blanda necesita espacio y al
    100 % no hay, por eso siempre asomaba una franja apagada arriba. Con tonos
    cercanos el corte se lee como marca de nivel, no como escalón. */
+/* [S7] El track tiene ancho propio porque la caja ya no se achica con borde.
+   `- 2px` y no --vol-w: Chromium pintaba la barra en 7 de los 9 px de
+   contenido, y con --vol-w sale 2 px más ancha. Con -2px es idéntica al
+   píxel (medido por la auditoría y en banco-s7/banco_fader.py). */
 .vol-slider::-webkit-slider-runnable-track {
+  width: calc(var(--vol-w) - 2px);
   background: var(--vol-degrade);
   border-radius: 999px; border: none;
 }
 .vol-slider::-moz-range-track {
+  width: var(--vol-w);
   background: var(--vol-degrade);
   border-radius: 999px; border: none;
 }
@@ -779,8 +792,19 @@ body {
      de la bajada —la misma línea vertical que gobierna el historial y el
      volumen— el corte es predecible y además el título queda dentro del
      sistema de alineación en vez de al margen. */
-  max-width: var(--hist-ancho); margin-left: auto; margin-right: auto;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  /* [S7 · 12/11] SIN PUNTOS SUSPENSIVOS. Pedido del usuario: "no quiero ...
+     si el nombre es muy largo puede mostrarse de otra forma, líneas un poco
+     más largas". Elegida la variante C de banco-s7/capturas-titulo/:
+       · el renglón ocupa TODO el ancho de la columna y no el de la bajada
+         (en 360 px: 304 contra 260) — sigue siendo un ancho fijo, así que el
+         corte sigue siendo predecible para todas las pieles;
+       · si aun así no entra en dos renglones, el JS (ajustarTitulo) achica la
+         letra de a medio píxel hasta que entre, con piso de 0,6 — dentro de la
+         MISMA caja de dos renglones, así que la composición no se mueve.
+     Un título que entra queda exactamente como antes. Era
+     `max-width: var(--hist-ancho)` + `-webkit-line-clamp: 2`. */
+  max-width: 100%; margin-left: auto; margin-right: auto;
+  display: block;
   overflow: hidden;
   /* Faltaba: sin esto, un título con una palabra sin espacios más ancha que
      la caja (.meta tiene 8px de margen a cada lado nomás) se sale por el

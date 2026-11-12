@@ -63,11 +63,14 @@
 <link rel="preconnect" href="https://white-mud-e8b6.entresijoradio.workers.dev" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;700;800&display=swap" rel="stylesheet">
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "771bfed92de84873adfeaabd5c61546d"}'></script><!-- End Cloudflare Web Analytics -->
-<link rel="stylesheet" href="estilos5.css">
-<link rel="stylesheet" href="skins5.css">
+<!-- [S7] `?v=` = fecha del último cambio de CSS. SUBIRLO cada vez que se
+     publica un cambio en estas hojas: GitHub Pages las cachea 10 min, y sin
+     esto se puede ver el HTML nuevo con el CSS viejo (AUDITORIA-SITIO). -->
+<link rel="stylesheet" href="estilos5.css?v=20261112">
+<link rel="stylesheet" href="skins5.css?v=20261112">
 <!-- [index0] La hoja del encaje. Va ÚLTIMA para poder redefinir los tokens
      de hueco de estilos5.css sin tocar ese archivo. -->
-<link rel="stylesheet" href="encaje0.css">
+<link rel="stylesheet" href="encaje0.css?v=20261112">
 </head>
 <!-- ═══════════════════════════════════════════════════════════════════
      index5 — copia de index4 del 16/08/2026, y desde acá se sigue.
@@ -513,6 +516,29 @@ function pintar(nombre, extra) {
   if (e.artist !== null) artistEl.textContent = extra && extra.artist ? extra.artist : e.artist;
   if (e.title  !== null) titleEl.textContent  = e.title;
 }
+
+/* ── EL TÍTULO ENTRA SIEMPRE, SIN "…" [S7 · 12/11] ────────────────
+   Achica la letra de a medio píxel hasta que el título entre en su caja
+   fija de dos renglones (estilos5.css, #title), con piso de 0,6 del tamaño
+   de la piel. Un título que entra no se toca. Lo dispara un observador
+   sobre el texto, así que cubre TODOS los caminos que escriben el título
+   —pintar, repintar, el panel— sin tocar ninguno; y se repite al cambiar
+   de piel (otra tipografía) y cuando termina de cargar la fuente. */
+function ajustarTitulo() {
+  try {
+    titleEl.style.fontSize = '';
+    if (titleEl.scrollHeight <= titleEl.clientHeight + 1) return;
+    const base = parseFloat(getComputedStyle(titleEl).fontSize);
+    let fs = base;
+    while (titleEl.scrollHeight > titleEl.clientHeight + 1 && fs > base * 0.6) {
+      fs -= 0.5; titleEl.style.fontSize = fs + 'px';
+    }
+  } catch (e) {}
+}
+if (window.MutationObserver) {
+  new MutationObserver(ajustarTitulo).observe(titleEl, { childList: true, characterData: true, subtree: true });
+}
+if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', ajustarTitulo);
 
 function setIcono(sonando) {
   iconPlay.style.display  = sonando ? 'none'  : 'block';
@@ -1499,6 +1525,7 @@ addEventListener('load', () => {
    `:is(html, #app)` esperando exactamente esto — son los dos únicos lugares
    donde el atributo significa "esta es la piel puesta"; en cualquier otro
    (las marcas del dial llevan el suyo) significa otra cosa. */
+let tAjusteTitulo = 0;   // [S7] un solo ajuste del título por cuadro
 function aplicarSkin(nombre) {
   const activo = FEATURES.skins ? (nombre || null) : null;
   const previo = app.dataset.skin || null;
@@ -1521,7 +1548,24 @@ function aplicarSkin(nombre) {
      pone donde ya se estaba dibujando igual. */
   vuSucio = true;
   if (!vuActivo) vuBase();
+  // [S7] Otra piel es otra tipografía: el título puede dejar de entrar (o
+  // volver a entrar). Diferido a un cuadro y uno solo: la piel cambia una vez
+  // por marca mientras el dedo desliza el dial, y medir acá forzaría un
+  // recálculo sincrónico en pleno gesto (ver el comentario de arriba).
+  if (activo !== previo) programarAjusteTitulo();
 }
+/* Un ajuste al cuadro siguiente y otro de confirmación más tarde: el encaje
+   recalcula la escala DESPUÉS del cambio de piel (diferido, ver el motor del
+   encaje), y medido en el banco un ajuste solo, al cuadro, quedaba hecho con
+   la escala vieja — el título volvía a no entrar. ajustarTitulo() parte
+   siempre de cero, así que repetirlo es inocuo. */
+let tAjusteTarde = null;
+function programarAjusteTitulo() {
+  if (!tAjusteTitulo) tAjusteTitulo = requestAnimationFrame(() => { tAjusteTitulo = 0; ajustarTitulo(); });
+  clearTimeout(tAjusteTarde);
+  tAjusteTarde = setTimeout(ajustarTitulo, 600);
+}
+addEventListener('resize', programarAjusteTitulo);
 // Factoreado aparte para poder refrescar al instante desde el panel
 // (togglear "oyentes" ahí no debería esperar hasta el próximo poll de 15s).
 function actualizarOyentes() {
@@ -1822,7 +1866,7 @@ function armarPanel() {
     '<div class="dev-row"><span class="dev-tag">Diagnóstico</span>' +
       '<pre id="dev-diag" style="font-size:9px;line-height:1.6;color:var(--text-mid);' +
       'white-space:pre-wrap;margin:0;font-family:ui-monospace,Consolas,monospace">' +
-      textoDiagnostico() + '</pre></div>' +
+      esc(textoDiagnostico()) + '</pre></div>' +   // [S7] trae datos del Worker: escapado
     // [S7] El registro de reconexión: lo último arriba, para leerlo en el
     // teléfono sin desplazar. "Copiar" lo deja listo para pegar en WhatsApp.
     '<div class="dev-row"><span class="dev-tag">Registro de reconexión (' + registro.length + ')</span>' +

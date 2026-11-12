@@ -235,8 +235,8 @@
    · la caja se arma de 118 × 63 (el alto de la barra por su blanco táctil) y
      los márgenes negativos/positivos la devuelven a ocupar 63 × 118 en la
      maqueta, la misma huella que el fader parado: nada se corre;
-   · el blanco táctil pasa de los bordes izquierdo/derecho a arriba/abajo,
-     que al girar quedan a los costados — los mismos 27 px;
+   · el blanco táctil es la caja de contenido entera (63 px de alto, que al
+     girar quedan de ancho), y la barra la dibuja el track con su propio alto;
    · el degradé va `to right`, que girado es `to top`; y el cabezal cambia
      ancho por alto. Girado, el mínimo (izquierda) queda abajo.
    El navegador traduce el toque a través de la rotación, así que arrastrar
@@ -247,7 +247,7 @@
   direction: ltr;
   width: var(--vol-h);
   height: var(--vol-ancho);
-  border-width: var(--vol-toque) 0;
+  border: 0;
   margin: calc((var(--vol-h) - var(--vol-ancho)) / 2)
           calc((var(--vol-ancho) - var(--vol-h)) / 2);
   -webkit-transform: rotate(-90deg);
@@ -258,7 +258,11 @@
                    var(--vol-empty-lo) var(--vol-pct, 80%),
                    var(--vol-empty-hi) 100%);
 }
-.sin-fader-vertical .vol-slider::-webkit-slider-runnable-track { height: 100%; }
+/* Acostado, el ancho de la barra es el ALTO del track (y el largo, el ancho). */
+.sin-fader-vertical .vol-slider::-webkit-slider-runnable-track {
+  width: auto; height: calc(var(--vol-w) - 2px);
+}
+.sin-fader-vertical .vol-slider::-moz-range-track { width: auto; height: var(--vol-w); }
 .sin-fader-vertical .vol-slider::-webkit-slider-thumb {
   width: var(--vol-thumb-h); height: var(--vol-thumb-w);
 }

@@ -3,6 +3,7 @@
   "short_name": "Entresijo",
   "description": "Radio Serrana — desde Traslasierra con amor",
   "lang": "es",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
